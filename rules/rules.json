@@ -1,0 +1,171 @@
+{
+  "CERT_EXPIRED": {
+    "severity": "High",
+    "confidence": "High",
+    "title": "Expired signing certificate",
+    "description": "APK signed with an expired certificate.",
+    "recommendation": "Re-sign with a valid certificate."
+  },
+  "MANIFEST_DEBUGGABLE": {
+    "severity": "High",
+    "confidence": "High",
+    "title": "Application is debuggable",
+    "description": "android:debuggable=true allows attaching a debugger and inspecting memory/state.",
+    "recommendation": "Remove android:debuggable or set to false in release builds."
+  },
+  "MANIFEST_BACKUP": {
+    "severity": "Medium",
+    "confidence": "High",
+    "title": "Backup allowed",
+    "description": "android:allowBackup enables extraction of private app storage via adb backup.",
+    "recommendation": "Set android:allowBackup=\"false\" for sensitive apps."
+  },
+  "MANIFEST_CLEARTEXT": {
+    "severity": "High",
+    "confidence": "High",
+    "title": "Cleartext traffic permitted",
+    "description": "android:usesCleartextTraffic=true allows unencrypted HTTP.",
+    "recommendation": "Set to false and use HTTPS everywhere."
+  },
+  "MANIFEST_LOW_TARGET_SDK": {
+    "severity": "Medium",
+    "confidence": "High",
+    "title": "Low targetSdkVersion",
+    "description": "App targets an older Android SDK, missing modern security defaults.",
+    "recommendation": "Target the latest Android SDK."
+  },
+  "MANIFEST_LEGACY_STORAGE": {
+    "severity": "Medium",
+    "confidence": "High",
+    "title": "Legacy external storage",
+    "description": "requestLegacyExternalStorage=true bypasses scoped storage.",
+    "recommendation": "Adopt scoped storage."
+  },
+
+  "PERMISSION_LOCATION": { "severity": "High",   "confidence": "High", "title": "Location permission requested", "description": "App requests access to device location.", "recommendation": "Only request if essential; prefer foreground-only." },
+  "PERMISSION_STORAGE":  { "severity": "Medium", "confidence": "High", "title": "Storage permission requested",  "description": "App requests access to external storage.", "recommendation": "Use scoped storage APIs; avoid broad access." },
+  "PERMISSION_SMS":      { "severity": "High",   "confidence": "High", "title": "SMS permission requested",      "description": "App can read/send/receive SMS.", "recommendation": "Avoid unless functionally required; consider SMS Retriever API." },
+  "PERMISSION_CONTACTS": { "severity": "High",   "confidence": "High", "title": "Contacts permission requested", "description": "App can read/write contacts.", "recommendation": "Restrict and justify clearly in UI." },
+  "PERMISSION_CAMERA":   { "severity": "Medium", "confidence": "High", "title": "Camera permission requested",   "description": "App can access the camera.", "recommendation": "Use only when required and on user action." },
+  "PERMISSION_MIC":      { "severity": "High",   "confidence": "High", "title": "Microphone permission requested", "description": "App can record audio.", "recommendation": "Prompt user; stop recording in background." },
+  "PERMISSION_PHONE":    { "severity": "Medium", "confidence": "High", "title": "Phone permission requested",    "description": "App can read phone state or place calls.", "recommendation": "Justify and restrict usage." },
+  "PERMISSION_SYSTEM":   { "severity": "High",   "confidence": "High", "title": "Sensitive system permission",   "description": "App requests overlay/installer/package enumeration privileges.", "recommendation": "Avoid unless critical." },
+  "PERMISSION_SENSORS":  { "severity": "High",   "confidence": "High", "title": "Sensor permission requested",   "description": "App accesses body/health sensors.", "recommendation": "Only request if core to function." },
+  "PERMISSION_CALENDAR": { "severity": "Medium", "confidence": "High", "title": "Calendar permission requested", "description": "App can read/write calendar.", "recommendation": "Request only when needed." },
+
+  "COMPONENT_ACTIVITY":  { "severity": "Medium", "confidence": "High", "title": "Exported activity",  "description": "An activity is exported and reachable by other apps.", "recommendation": "Set android:exported=\"false\" or protect with permission." },
+  "COMPONENT_SERVICE":   { "severity": "High",   "confidence": "High", "title": "Exported service",   "description": "A service is exported and reachable by other apps.", "recommendation": "Set android:exported=\"false\" or protect with signature permission." },
+  "COMPONENT_RECEIVER":  { "severity": "Medium", "confidence": "High", "title": "Exported receiver",  "description": "A broadcast receiver is exported and reachable by other apps.", "recommendation": "Restrict with android:permission." },
+  "COMPONENT_PROVIDER":  { "severity": "High",   "confidence": "High", "title": "Exported content provider", "description": "A content provider is exported and reachable by other apps.", "recommendation": "Set android:exported=\"false\" or protect with android:permission." },
+  "COMPONENT_LAUNCHER":  { "severity": "Info",   "confidence": "High", "title": "Launcher activity", "description": "Main activity with MAIN/LAUNCHER intent-filter — exported by design and required for app launching.", "recommendation": "Informational only; this is expected behaviour." },
+
+  "DEEPLINK_WILDCARD_HOST": { "severity": "High",   "confidence": "High", "title": "Wildcard deep-link host", "description": "A browsable intent-filter uses a wildcard/empty host.", "recommendation": "Use explicit hosts and validate deep-link parameters." },
+  "DEEPLINK_HTTP":          { "severity": "Medium", "confidence": "High", "title": "HTTP deep link",          "description": "Deep link uses an http scheme; vulnerable to interception.", "recommendation": "Use https and App Links with assetlink.json." },
+
+  "SECRET_AWS_KEY":            { "severity": "Critical", "confidence": "High",   "title": "AWS access key", "description": "AWS access key embedded in APK.", "recommendation": "Rotate key immediately; use short-lived tokens from backend." },
+  "SECRET_GOOGLE_API":         { "severity": "High",     "confidence": "High",   "title": "Google API key", "description": "Google API key embedded in APK.", "recommendation": "Restrict key by Android package/SHA-1; rotate if abused." },
+  "SECRET_FIREBASE":           { "severity": "High",     "confidence": "High",   "title": "Firebase token", "description": "Firebase token string detected.", "recommendation": "Do not ship tokens; rotate." },
+  "SECRET_PRIVATE_KEY":        { "severity": "Critical", "confidence": "High",   "title": "Private key detected", "description": "PEM-encoded private key found in APK.", "recommendation": "Remove key from client; rotate." },
+  "SECRET_BEARER":             { "severity": "High",     "confidence": "Medium", "title": "Hardcoded bearer token", "description": "Bearer token embedded in APK.", "recommendation": "Rotate token; fetch at runtime." },
+  "SECRET_JWT":                { "severity": "High",     "confidence": "High",   "title": "Hardcoded JWT", "description": "JWT token embedded in APK.", "recommendation": "Rotate token." },
+  "SECRET_SLACK":              { "severity": "Critical", "confidence": "High",   "title": "Slack token", "description": "Slack token embedded in APK.", "recommendation": "Revoke token." },
+  "SECRET_STRIPE":             { "severity": "Critical", "confidence": "High",   "title": "Stripe live key", "description": "Stripe live key embedded in APK.", "recommendation": "Revoke; never ship live keys." },
+  "SECRET_GITHUB":             { "severity": "Critical", "confidence": "High",   "title": "GitHub token", "description": "GitHub token embedded in APK.", "recommendation": "Revoke." },
+  "SECRET_HARDCODED_PASSWORD": { "severity": "High",     "confidence": "Medium", "title": "Hardcoded password", "description": "Literal password string found.", "recommendation": "Move credentials server-side." },
+  "SECRET_IP_ADDRESS":         { "severity": "Info",     "confidence": "Low",    "title": "Hardcoded IP address", "description": "IP literal present in APK.", "recommendation": "Verify it points to expected backend." },
+  "SECRET_OBFUSCATED_BLOB":    { "severity": "Info",     "confidence": "Low",    "title": "Possible obfuscated blob", "description": "A long hex string (>=24 chars) is present in the DEX. This may be an encryption key, an obfuscated secret, or simply a hash. Manual review recommended.", "recommendation": "Inspect the string in-context (jadx) to determine if it is a secret." },
+  "SECRET_IN_NATIVE":          { "severity": "High",     "confidence": "High",   "title": "Secret pattern found in native library", "description": "A credential-like string was found inside a .so file bundled in the APK.", "recommendation": "Remove secrets from native code; rotate if present." },
+
+  "CODE_WEAK_CRYPTO_ECB":   { "severity": "High",   "confidence": "High", "title": "AES/ECB mode",    "description": "ECB mode is deterministic and insecure.", "recommendation": "Use AES/GCM/NoPadding." },
+  "CODE_WEAK_CRYPTO_DES":   { "severity": "High",   "confidence": "High", "title": "DES cipher",      "description": "DES is cryptographically broken.", "recommendation": "Use AES-GCM." },
+  "CODE_WEAK_HASH_MD5":     { "severity": "Medium", "confidence": "High", "title": "MD5 hash",        "description": "MD5 is broken for security use.", "recommendation": "Use SHA-256 or better." },
+  "CODE_WEAK_HASH_SHA1":    { "severity": "Low",    "confidence": "High", "title": "SHA-1 hash",      "description": "SHA-1 is deprecated for security use.", "recommendation": "Use SHA-256." },
+  "CODE_INSECURE_RANDOM":   { "severity": "Medium", "confidence": "High", "title": "java.util.Random", "description": "Non-cryptographic RNG used for security purposes.", "recommendation": "Use SecureRandom." },
+  "CODE_TRUST_ALL_CERTS":   { "severity": "High",   "confidence": "High", "title": "Insecure TrustManager", "description": "Custom TrustManager may accept all certs.", "recommendation": "Use the platform default TrustManager." },
+  "CODE_HOSTNAME_VERIFIER": { "severity": "High",   "confidence": "High", "title": "Custom HostnameVerifier", "description": "Hostname verification may be disabled.", "recommendation": "Do not override HostnameVerifier." },
+
+  "RESILIENCE_ROOT_CHECK_PRESENT":   { "severity": "Info", "confidence": "High", "title": "Root detection implemented",   "description": "Application checks whether the device is rooted. This is a positive control that can be tested for bypass during a lab assessment.", "recommendation": "None; for crackme targets this is the first obstacle to bypass." },
+  "RESILIENCE_FRIDA_CHECK_PRESENT":  { "severity": "Info", "confidence": "High", "title": "Frida detection implemented",  "description": "Application looks for Frida instrumentation. Positive control — may be bypassable.", "recommendation": "None; test in lab environment." },
+  "RESILIENCE_XPOSED_CHECK_PRESENT": { "severity": "Info", "confidence": "High", "title": "Xposed detection implemented", "description": "Application looks for Xposed framework. Positive control.", "recommendation": "None; test in lab environment." },
+  "RESILIENCE_DEBUG_CHECK_PRESENT":  { "severity": "Info", "confidence": "High", "title": "Debug detection implemented",  "description": "Application checks for debugger attachment. Positive control.", "recommendation": "None; test in lab environment." },
+  "RESILIENCE_EMULATOR_CHECK_PRESENT": { "severity": "Info", "confidence": "High", "title": "Emulator detection implemented", "description": "Application checks for emulator artefacts. Positive control.", "recommendation": "None; test in lab environment." },
+
+  "STORAGE_WORLD_READABLE":   { "severity": "High",   "confidence": "High", "title": "World-readable file mode", "description": "MODE_WORLD_READABLE exposes files to other apps.", "recommendation": "Use MODE_PRIVATE." },
+  "STORAGE_WORLD_WRITEABLE":  { "severity": "High",   "confidence": "High", "title": "World-writable file mode", "description": "MODE_WORLD_WRITEABLE allows other apps to write files.", "recommendation": "Use MODE_PRIVATE." },
+  "STORAGE_EXTERNAL":         { "severity": "Medium", "confidence": "High", "title": "External storage usage", "description": "App writes to external storage.", "recommendation": "Use scoped storage / app-specific directories." },
+  "STORAGE_LOG_SENSITIVE":    { "severity": "Medium", "confidence": "Medium", "title": "Sensitive data logged", "description": "Log call includes sensitive variable names.", "recommendation": "Strip logs from release builds." },
+
+  "NETWORK_NO_CONFIG":         { "severity": "Medium", "confidence": "Medium", "title": "No network security config", "description": "App does not define networkSecurityConfig while also having network capability.", "recommendation": "Add a network_security_config.xml." },
+  "NETWORK_CLEARTEXT_ALLOWED": { "severity": "High",   "confidence": "High",   "title": "Cleartext traffic allowed", "description": "usesCleartextTraffic=true.", "recommendation": "Disallow cleartext traffic." },
+  "NETWORK_HTTP_URL":          { "severity": "Medium", "confidence": "High",   "title": "HTTP URL hardcoded", "description": "Plain HTTP endpoint found in DEX.", "recommendation": "Use HTTPS." },
+
+  "RUNTIME_CRASH":          { "severity": "Medium", "confidence": "High", "title": "Crash detected at runtime", "description": "App logged a FATAL EXCEPTION during observation.", "recommendation": "Investigate crash; may indicate input validation bugs." },
+  "LOG_SENSITIVE_PASSWORD": { "severity": "High",   "confidence": "High", "title": "Password logged", "description": "Logcat contains a password-like token.", "recommendation": "Never log credentials." },
+  "LOG_SENSITIVE_TOKEN":    { "severity": "High",   "confidence": "High", "title": "Token logged", "description": "Logcat contains a token/API key.", "recommendation": "Remove sensitive log statements." },
+  "LOG_EMAIL":              { "severity": "Info",   "confidence": "Low",  "title": "Email in logcat", "description": "Email address present in logcat.", "recommendation": "Validate whether this is intended." },
+  "LOG_CREDIT_CARD":        { "severity": "High",   "confidence": "Medium", "title": "Possible card number", "description": "Credit-card-like number in logcat.", "recommendation": "Never log PANs." },
+    "WEBVIEW_JS_BRIDGE": {
+    "severity": "Critical",
+    "confidence": "High",
+    "title": "WebView JS Bridge",
+    "description": "Application exposes native Java objects to JavaScript via addJavascriptInterface. If the WebView loads untrusted content, this can lead to RCE.",
+    "recommendation": "Avoid addJavascriptInterface. Use WebViewCompat and restrict allowed origins."
+  },
+  "WEBVIEW_FILE_ACCESS": {
+    "severity": "High",
+    "confidence": "High",
+    "title": "WebView File Access",
+    "description": "WebView allows local file access, which can lead to data exfiltration if the app loads a malicious URL.",
+    "recommendation": "Disable file access unless strictly necessary."
+  },
+  "WEBVIEW_UNIVERSAL_ACCESS": {
+    "severity": "High",
+    "confidence": "High",
+    "title": "WebView Universal Access",
+    "description": "WebView allows JavaScript from file:// URLs to access any origin.",
+    "recommendation": "Disable setAllowUniversalAccessFromFileURLs."
+  },
+  "CLOUD_S3_BUCKET_FOUND": {
+    "severity": "Medium",
+    "confidence": "High",
+    "title": "AWS S3 Bucket URL",
+    "description": "An S3 bucket URL was found in the APK. Check if the bucket is public or lacks proper IAM policies.",
+    "recommendation": "Ensure S3 buckets require authenticated access and block public listing."
+  },
+  "CLOUD_FIREBASE_OPEN": {
+    "severity": "Critical",
+    "confidence": "High",
+    "title": "Publicly Readable Firebase",
+    "description": "A Firebase database URL allows unauthenticated read access.",
+    "recommendation": "Update Firebase security rules to require authentication."
+  },
+  "INFO_DEEPLINK_PAYLOAD": {
+    "severity": "Info",
+    "confidence": "High",
+    "title": "Deep Link Payload",
+    "description": "ADB command generated to test this deep link.",
+    "recommendation": "Use the provided payload to test for parameter injection or unauthorized screen access."
+  },
+  "DEEPLINK_BROWSABLE": {
+    "severity": "Medium",
+    "confidence": "High",
+    "title": "Browsable activity exposed",
+    "description": "An activity with a BROWSABLE intent-filter can be launched from a browser or another app via deep links, potentially exposing functionality to untrusted callers.",
+    "recommendation": "Validate all deep link parameters server-side. Use App Links with assetlinks.json for verified domains."
+  },
+  "RUNTIME_PREF_PASSWORD": {
+    "severity": "High",
+    "confidence": "High",
+    "title": "Password stored in SharedPreferences",
+    "description": "Frida detected a password-like value being saved to SharedPreferences at runtime, indicating insecure credential storage.",
+    "recommendation": "Use Android Keystore or EncryptedSharedPreferences for sensitive data. Never store passwords in plaintext."
+  },
+  "RUNTIME_CRYPTO": {
+    "severity": "Medium",
+    "confidence": "High",
+    "title": "Crypto operation observed at runtime",
+    "description": "Frida intercepted a Cipher.doFinal() call at runtime. Review the algorithm and mode for weak crypto (e.g. ECB, DES).",
+    "recommendation": "Ensure AES/GCM or AES/CBC with HMAC is used. Avoid ECB mode and legacy ciphers."
+  }
+
+}

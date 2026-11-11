@@ -1,0 +1,20 @@
+$ python main.py InsecureBankv2.apk --only log
+(NOT RUN — blocked)
+
+Prerequisites that succeeded earlier this session:
+- adb devices showed 10.0.2.5:5555 device
+- adb install -r InsecureBankv2.apk → Success
+- adb_inspector + runtime analyzers completed LIVE against InsecureBankv2
+
+Then device path failed during frida run:
+- adb shell hung → after adb restart: No route to host for 10.0.2.5
+- nmap 10.0.2.0/24: emulator host absent
+
+BLOCKED: restart android-x86 emulator (10.0.2.5:5555), confirm:
+  adb connect 10.0.2.5:5555 && adb shell echo OK
+then re-run:
+  cd "/home/krom/Desktop/androidsec core updated"
+  . .venv/bin/activate
+  python main.py InsecureBankv2.apk --only log
+
+App intended: InsecureBankv2 (fallback DIVA jakhar.aseem.diva if needed)

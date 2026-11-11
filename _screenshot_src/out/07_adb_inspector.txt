@@ -1,0 +1,43 @@
+$ cd "/home/krom/Desktop/androidsec core updated"
+$ . .venv/bin/activate
+$ adb devices
+List of devices attached
+10.0.2.5:5555	device
+$ adb install -r InsecureBankv2.apk
+Performing Streamed Install
+Success
+$ python main.py InsecureBankv2.apk --only adb_inspector
+============================================================
+[*] androidsec scanning: InsecureBankv2.apk
+============================================================
+[*] Running adb_inspector... done (0.2s, 0 findings)
+============================================================
+[+] Risk Level : PASS (0/100)
+[+] Findings   : {'Critical': 0, 'High': 0, 'Medium': 0, 'Low': 0, 'Info': 0}
+[+] HTML       : output_reports/security_report_20261019_131058.html
+[+] JSON       : output_reports/security_report_20261019_131058.json
+
+--- tool_outputs[adb_inspector] ---
+=== ADB Device Inspector ===
+Device: 10.0.2.5:5555
+  Android: 9
+  SDK: 28
+  Manufacturer: innotek GmbH
+  Model: VirtualBox
+  Target app com.android.insecurebankv2: INSTALLED
+  APK path: package:/data/app/com.android.insecurebankv2-P2_XrBxLD7EBehZN5p--hw==/base.apk
+(skipped=False)
+
+--- metadata ---
+{
+  "target": "InsecureBankv2.apk",
+  "target_basename": "InsecureBankv2.apk",
+  "timestamp": "2026-10-19 13:10:58",
+  "sha256": "b18af2a0e44d7634bbcdf93664d9c78a2695e050393fcfbb5e8b91f902d194a4",
+  "size_human": "3.3 MB",
+  "package": "com.android.insecurebankv2",
+  "app_name": "InsecureBankv2",
+  "version_name": "1.0",
+  "min_sdk": "15",
+  "target_sdk": "22"
+}

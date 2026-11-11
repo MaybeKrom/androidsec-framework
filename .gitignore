@@ -1,0 +1,30 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Output reports (regenerated on every scan)
+output_reports/
+
+# Androguard cache
+.androidsec/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/

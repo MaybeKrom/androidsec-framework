@@ -1,0 +1,32 @@
+$ adb devices
+List of devices attached
+10.0.2.5:5555	device
+
+$ adb install -r InsecureBankv2.apk
+Performing Streamed Install
+Success
+package:com.android.insecurebankv2 installed; frida-server PID 3753 running
+
+$ . .venv/bin/activate
+$ python main.py InsecureBankv2.apk --only frida
+============================================================
+[*] androidsec scanning: InsecureBankv2.apk
+============================================================
+[*] Running frida... 
+(... hung >2.5 minutes with no completion ...)
+
+Diagnosis:
+- Analyzer calls adb shell am force-stop / monkey / pidof WITHOUT timeouts
+  (see analyzers/frida_runtime_analyzer.py).
+- Concurrent heavy adb shell (ps) also hung; adb devices still listed the
+  device but adb shell stopped responding.
+- After adb kill-server + reconnect: ping 10.0.2.5 → 100% loss /
+  "No route to host". Host gone from 10.0.2.0/24 (nmap: only .1 .2 .3 .4).
+- No VBoxManage / qemu on this Kali guest — cannot restart sibling
+  android-x86_64 VM from here.
+
+BLOCKED: need android-x86 emulator at 10.0.2.5:5555 brought back online,
+then re-run: python main.py InsecureBankv2.apk --only frida
+
+App attempted: InsecureBankv2 (com.android.insecurebankv2)
+No security_report JSON produced for this frida attempt (process killed).

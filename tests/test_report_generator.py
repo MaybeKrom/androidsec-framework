@@ -135,6 +135,41 @@ class TestMasvsLinks(unittest.TestCase):
             )
             self.assertIn(masvs_id, sections)
 
+    def test_each_finding_links_to_a_review(self):
+        findings = [
+            {
+                "severity": "Info",
+                "confidence": "Low",
+                "rule_id": "NOTE",
+                "title": "No mapping",
+                "evidence": "n/a",
+                "recommendation": "None",
+                "masvs": "N/A",
+            },
+            {
+                "severity": "High",
+                "confidence": "High",
+                "rule_id": "EXPORTED",
+                "title": "Exported component",
+                "evidence": "activity",
+                "recommendation": "Set exported false",
+                "masvs": "MASVS-PLATFORM-1",
+            },
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "security_report_20261111_120000.html")
+            _report(findings).save_html(path)
+            report_html = Path(path).read_text(encoding="utf-8")
+        self.assertIn(
+            'href="/review?report=security_report_20261111_120000.html&amp;i=0"',
+            report_html,
+        )
+        self.assertLess(
+            report_html.index("Exported component"),
+            report_html.index("No mapping"),
+        )
+        self.assertIn(">Review</a>", report_html)
+
 
 if __name__ == "__main__":
     unittest.main()

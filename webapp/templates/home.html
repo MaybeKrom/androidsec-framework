@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}androidsec{% endblock %}
+{% block body %}
+  <section class="hero">
+    <p class="eyebrow">Android APK assessment</p>
+    <h1>Find the weaknesses before someone else does.</h1>
+    <p class="lede">
+      androidsec reads an APK, runs the checks you choose, and opens an HTML
+      report mapped to OWASP MASVS. You can also decompile that APK, browse
+      the files, and rebuild it. Dynamic checks wait until you select a device
+      and confirm you are authorized to test it. Static checks cover the manifest, permissions,
+      exported components, secrets, crypto, storage, network settings, and WebView use.
+    </p>
+    <p class="hero-actions">
+      <a class="primary" href="{{ url_for('assess') }}">Start an assessment</a>
+    </p>
+  </section>
+
+  <ol class="steps">
+    <li>
+      <span class="num">1</span>
+      <div>
+        <strong>Choose an APK</strong>
+        <p>Use a sample that ships with the tool, or upload an app you are allowed to test.</p>
+      </div>
+    </li>
+    <li>
+      <span class="num">2</span>
+      <div>
+        <strong>Pick the analyzers</strong>
+        <p>Static checks are on by default. Dynamic checks stay off until you connect a device and confirm you are allowed to test it.</p>
+      </div>
+    </li>
+    <li>
+      <span class="num">3</span>
+      <div>
+        <strong>Read the report</strong>
+        <p>The scan runs in the background. This page stays responsive, then the report opens here.</p>
+      </div>
+    </li>
+  </ol>
+
+  <div class="split">
+    <section class="card">
+      <h2>Static analysis</h2>
+      <p>Works from the APK alone. No device, no ADB, no extra setup.</p>
+      <ul class="points">
+        <li>Manifest flags, permissions, and exported components</li>
+        <li>Secrets, weak crypto, storage, and cleartext traffic</li>
+        <li>WebView settings, endpoints, and deep links</li>
+      </ul>
+    </section>
+    <section class="card">
+      <h2>Dynamic analysis</h2>
+      <p>Optional. These checks need a connected device and are left unchecked.</p>
+      <ul class="points">
+        <li>Device properties and install status</li>
+        <li>Launch, crash, and logcat review</li>
+        <li>Frida hooks for preferences and crypto</li>
+      </ul>
+    </section>
+  </div>
+{% endblock %}

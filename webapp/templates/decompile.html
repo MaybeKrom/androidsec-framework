@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}Decompile — androidsec{% endblock %}
+{% block body_class %}{{ 'page-scan' if job.status != 'done' else '' }}{% endblock %}
+{% block body %}
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">Decompile</p>
+      <h1 id="status-title">{{ job.apk_name if job.status == 'done' else 'Decompiling' }}</h1>
+      {% if job.status == 'done' %}
+        <p class="lede">Resources come from apktool. Java comes from jadx. Rebuild uses the apktool output.</p>
+      {% endif %}
+    </div>
+    <ol class="rail" aria-label="Progress">
+      <li class="done"><span>1</span> Choose</li>
+      <li class="{{ 'current' if job.status != 'done' else 'done' }}"><span>2</span> Decode</li>
+      <li class="{{ 'current' if job.status == 'done' else '' }}"><span>3</span> Browse</li>
+    </ol>
+  </header>
+
+  {% if job.status != 'done' %}
+    <section class="card scan-panel" id="scan-panel">
+      <div class="spinner" id="spinner" aria-hidden="true"></div>
+      <p class="scan-target">{{ job.apk_name }}</p>
+      <p class="scan-message" id="message">{{ job.message }}</p>
+      <p class="elapsed" id="elapsed">00:00</p>
+      <p id="error" class="error-box" hidden></p>
+      <p class="scan-note" id="scan-note">apktool runs first, then jadx. This page stays open until both finish.</p>
+      <p class="scan-actions"><a class="ghost" href="{{ url_for('assess') }}">Back to assessment</a></p>
+    </section>
+  {% else %}
+    {% if job.rebuild_status == 'running' %}
+      <p class="notice">Rebuilding the APK…</p>
+    {% elif job.rebuild_status == 'error' %}
+      <p class="notice error">Rebuild failed.</p>
+      {% if job.rebuild_error %}
+        <pre class="log-view">{{ job.rebuild_error }}</pre>
+      {% endif %}
+    {% elif job.rebuild_status == 'done' %}
+      <p class="notice">Rebuild finished. <a href="{{ url_for('decompile.rebuilt', job_id=job.id) }}">Download the rebuilt APK</a></p>
+    {% endif %}
+
+    <div class="btn-row deck">
+      <a class="{{ 'primary' if tree == 'apktool' else 'ghost' }}" href="{{ url_for('decompile.page', job_id=job.id, tree='apktool') }}">Resources</a>
+      <a class="{{ 'primary' if tree == 'jadx' else 'ghost' }}" href="{{ url_for('decompile.page', job_id=job.id, tree='jadx') }}">Java</a>
+      {% if tree == 'apktool' %}
+        <a class="ghost" href="{{ url_for('decompile.archive', job_id=job.id, tree='apktool') }}">Download resources</a>
+      {% elif job.java_dir %}
+        <a class="ghost" href="{{ url_for('decompile.archive', job_id=job.id, tree='jadx') }}">Download Java</a>
+      {% endif %}
+      <form method="post" action="{{ url_for('decompile.rebuild', job_id=job.id) }}">
+        <button type="submit" class="primary" {% if job.rebuild_status == 'running' %}disabled{% endif %}>Rebuild APK</button>
+      </form>
+      <a class="ghost" href="{{ url_for('assess') }}">Back</a>
+    </div>
+
+    {% if tree == 'jadx' and not job.java_dir %}
+      <section class="card">
+        <h2>Java sources are not available</h2>
+        <p>{{ job.jadx_error or "jadx did not write any sources." }}</p>
+      </section>
+    {% else %}
+      <section class="card">
+        <nav class="crumbs" aria-label="Path">
+          {% for crumb in crumbs %}
+            {% if not loop.last or not viewing %}
+              <a href="{{ url_for('decompile.page', job_id=job.id, tree=tree, path=crumb.path) }}">{{ crumb.name }}</a>
+            {% else %}
+              <span>{{ crumb.name }}</span>
+            {% endif %}
+            {% if not loop.last %}<span class="sep">/</span>{% endif %}
+          {% endfor %}
+        </nav>
+
+        {% if viewing %}
+          <div class="section-head file-head">
+            <h2>{{ viewing }}</h2>
+            <a class="ghost" href="{{ url_for('decompile.download', job_id=job.id, tree=tree, path=rel) }}">Download</a>
+          </div>
+          {% if preview is not none %}
+            {% if clipped %}
+              <p class="muted">Showing the first part of this file.</p>
+            {% endif %}
+            <pre class="code-view">{{ preview }}</pre>
+          {% else %}
+            <p>This file is not shown in the browser. Download it to open it locally.</p>
+          {% endif %}
+          <p><a href="{{ url_for('decompile.page', job_id=job.id, tree=tree, path=parent) }}">Back to this folder</a></p>
+        {% else %}
+          {% if parent or rel %}
+            <p><a href="{{ url_for('decompile.page', job_id=job.id, tree=tree, path=parent) }}">Up one folder</a></p>
+          {% endif %}
+          {% if entries %}
+            <ul class="file-list">
+              {% for entry in entries %}
+                <li>
+                  <a class="file-name" href="{{ url_for('decompile.page', job_id=job.id, tree=tree, path=entry.path) }}">{{ entry.name }}{% if entry.is_dir %}/{% endif %}</a>
+                  <span class="muted">{{ entry.size }}</span>
+                  {% if not entry.is_dir %}
+                    <a href="{{ url_for('decompile.download', job_id=job.id, tree=tree, path=entry.path) }}">Download</a>
+                  {% endif %}
+                </li>
+              {% endfor %}
+            </ul>
+            {% if truncated %}
+              <p class="muted">Showing the first 500 entries. Open a deeper folder to see the rest.</p>
+            {% endif %}
+          {% else %}
+            <p class="muted">This folder is empty.</p>
+          {% endif %}
+        {% endif %}
+      </section>
+    {% endif %}
+  {% endif %}
+
+  {% if job.status != 'done' or job.rebuild_status == 'running' %}
+  <script>
+    const jobId = {{ job.id|tojson }};
+    const started = Date.now();
+    const messageEl = document.getElementById("message");
+    const errorEl = document.getElementById("error");
+    const spinner = document.getElementById("spinner");
+    const elapsedEl = document.getElementById("elapsed");
+    const titleEl = document.getElementById("status-title");
+    const noteEl = document.getElementById("scan-note");
+    const waitingFor = {{ ('rebuild' if job.rebuild_status == 'running' and job.status == 'done' else 'decode')|tojson }};
+
+    function formatElapsed(total) {
+      const minutes = Math.floor(total / 60);
+      const seconds = total % 60;
+      return String(minutes).padStart(2, "0") + ":" + String(seconds).padStart(2, "0");
+    }
+    if (elapsedEl) {
+      setInterval(function () {
+        elapsedEl.textContent = formatElapsed(Math.floor((Date.now() - started) / 1000));
+      }, 1000);
+    }
+
+    async function poll() {
+      try {
+        const response = await fetch("/decompile/" + jobId + "/status");
+        const data = await response.json();
+        if (waitingFor === "decode") {
+          if (data.message && messageEl) messageEl.textContent = data.message;
+          if (data.status === "done") {
+            window.location.reload();
+            return;
+          }
+          if (data.status === "error") {
+            if (spinner) spinner.hidden = true;
+            if (titleEl) titleEl.textContent = "Decompile failed";
+            if (noteEl) noteEl.hidden = true;
+            if (messageEl) messageEl.textContent = "apktool did not finish.";
+            if (errorEl) {
+              errorEl.hidden = false;
+              errorEl.textContent = data.error || "The decompile failed.";
+            }
+            return;
+          }
+        } else if (data.rebuild_status === "done" || data.rebuild_status === "error") {
+          window.location.reload();
+          return;
+        }
+      } catch (err) {
+        if (messageEl) messageEl.textContent = "Waiting for the server…";
+      }
+      setTimeout(poll, 2000);
+    }
+    poll();
+  </script>
+  {% endif %}
+{% endblock %}

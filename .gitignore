@@ -21,6 +21,18 @@ Thumbs.db
 # Output reports (regenerated on every scan)
 output_reports/
 
+# APKs uploaded through the web UI, and cached package info
+webapp/uploads/*.apk
+webapp/uploads/*.part
+webapp/meta/*.json
+webapp/meta/*.tmp
+
+# Decoded APK trees from the web UI
+webapp/decoded/
+
+# Saved finding reviews. API keys are not written here.
+webapp/reviews.sqlite
+
 # Androguard cache
 .androidsec/
 

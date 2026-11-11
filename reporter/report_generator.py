@@ -1,5 +1,7 @@
 import html
 import json
+import os
+from urllib.parse import urlencode
 
 from rules.owasp_mapper import masvs_link as masvs_cell
 
@@ -15,6 +17,18 @@ CONF_COLOR = {"High": "#27ae60", "Medium": "#f39c12", "Low": "#95a5a6"}
 LEVEL_COLOR = {"CRITICAL": "#8e44ad", "HIGH": "#e74c3c",
                "MEDIUM": "#e67e22", "LOW": "#f1c40f",
                "PASS": "#27ae60"}
+SEVERITY_ORDER = {"Critical": 0, "High": 1, "Medium": 2, "Low": 3, "Info": 4}
+
+
+def sorted_findings(findings):
+    """Same order as the HTML table, so a review link index stays stable."""
+    return sorted(
+        findings,
+        key=lambda item: (
+            SEVERITY_ORDER.get(item.get("severity"), 9),
+            item.get("rule_id") or "",
+        ),
+    )
 
 
 class ReportGenerator:
@@ -71,6 +85,7 @@ table{{width:100%;border-collapse:collapse;margin-top:10px}}
 th,td{{padding:10px;border:1px solid #ddd;text-align:left;vertical-align:top;font-size:14px}}
 th{{background:#2c3e50;color:#fff}}
 .badge{{display:inline-block;padding:3px 10px;border-radius:12px;color:#fff;font-weight:700;font-size:12px}}
+a.review{{display:inline-block;padding:4px 8px;border-radius:6px;background:#0f6e6b;color:#fff;text-decoration:none;font-weight:700;font-size:12px}}
 .meta td{{border:0;padding:4px}}
 .summary{{display:flex;gap:16px;flex-wrap:wrap}}
 .summary div{{flex:1;min-width:120px;padding:14px;border-radius:6px;background:#ecf0f1;text-align:center}}
@@ -123,13 +138,13 @@ th{{background:#2c3e50;color:#fff}}
         else:
             parts.append('<table><tr><th>Severity</th><th>Confidence</th><th>Rule</th>'
                          '<th>Title</th><th>Evidence</th><th>Recommendation</th>'
-                         '<th>MASVS</th></tr>')
-            order = {"Critical": 0, "High": 1, "Medium": 2, "Low": 3, "Info": 4}
-            for f in sorted(self.findings,
-                            key=lambda x: (order.get(x["severity"], 9),
-                                           x["rule_id"])):
+                         '<th>MASVS</th><th>Review</th></tr>')
+            report_name = os.path.basename(path)
+            for index, f in enumerate(sorted_findings(self.findings)):
                 sc = SEV_COLOR.get(f["severity"], "#333")
                 cc = CONF_COLOR.get(f.get("confidence", "High"), "#95a5a6")
+                query = urlencode({"report": report_name, "i": str(index)})
+                href = esc(f"/review?{query}")
                 parts.append(
                     f'<tr>'
                     f'<td><span class="badge" style="background:{sc}">{esc(f["severity"])}</span></td>'
@@ -139,6 +154,7 @@ th{{background:#2c3e50;color:#fff}}
                     f'<td><code>{esc(f.get("evidence",""))}</code></td>'
                     f'<td>{esc(f.get("recommendation",""))}</td>'
                     f'<td>{masvs_cell(f.get("masvs", "N/A"))}</td>'
+                    f'<td><a class="review" href="{href}">Review</a></td>'
                     f'</tr>'
                 )
             parts.append('</table>')

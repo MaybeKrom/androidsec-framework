@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Scanning — androidsec{% endblock %}
+{% block body_class %}page-scan{% endblock %}
+{% block body %}
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">Assessment</p>
+      <h1 id="status-title">Scan running</h1>
+    </div>
+    <ol class="rail" aria-label="Progress">
+      <li class="done"><span>1</span> Set up</li>
+      <li class="current"><span>2</span> Scan</li>
+      <li><span>3</span> Report</li>
+    </ol>
+  </header>
+
+  <section class="card scan-panel" id="scan-panel">
+    <div class="spinner" id="spinner" aria-hidden="true"></div>
+    <p class="scan-target">{{ job.apk_name }}</p>
+    <p class="scan-message" id="message">{{ job.message }}</p>
+    <p class="elapsed" id="elapsed">00:00</p>
+    <p id="error" class="error-box" hidden></p>
+    <p class="scan-note" id="scan-note">You can leave this page open. The report replaces it when the scan finishes.</p>
+    <p class="scan-actions"><a class="ghost" href="{{ url_for('assess') }}">Back to assessment</a></p>
+  </section>
+
+  <script>
+    const jobId = {{ job.id|tojson }};
+    const started = Date.now();
+    const messageEl = document.getElementById("message");
+    const errorEl = document.getElementById("error");
+    const spinner = document.getElementById("spinner");
+    const elapsedEl = document.getElementById("elapsed");
+    const titleEl = document.getElementById("status-title");
+    const noteEl = document.getElementById("scan-note");
+
+    function formatElapsed(total) {
+      const minutes = Math.floor(total / 60);
+      const seconds = total % 60;
+      return String(minutes).padStart(2, "0") + ":" + String(seconds).padStart(2, "0");
+    }
+
+    setInterval(function () {
+      const seconds = Math.floor((Date.now() - started) / 1000);
+      elapsedEl.textContent = formatElapsed(seconds);
+    }, 1000);
+
+    function stopWaiting(text) {
+      spinner.hidden = true;
+      titleEl.textContent = "Scan failed";
+      noteEl.hidden = true;
+      errorEl.hidden = false;
+      errorEl.textContent = text;
+    }
+
+    async function poll() {
+      try {
+        const response = await fetch("/scan/" + jobId + "/status");
+        const data = await response.json();
+        if (data.message) {
+          messageEl.textContent = data.message;
+        }
+        if (data.status === "done") {
+          titleEl.textContent = "Opening the report";
+          messageEl.textContent = "Scan finished";
+          window.location = "/report/" + jobId;
+          return;
+        }
+        if (data.status === "error") {
+          messageEl.textContent = "The analyzers did not finish.";
+          stopWaiting(data.error || "The scan failed.");
+          return;
+        }
+      } catch (err) {
+        messageEl.textContent = "Waiting for the server…";
+      }
+      setTimeout(poll, 2000);
+    }
+
+    poll();
+  </script>
+{% endblock %}

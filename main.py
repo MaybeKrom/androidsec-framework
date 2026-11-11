@@ -47,6 +47,128 @@ def _safe_meta(apk_obj, method_name, default="Unknown"):
         return default
 
 
+def _notify(on_progress, tool_id, message):
+    if not on_progress:
+        return
+    try:
+        on_progress(tool_id, message)
+    except Exception:
+        pass
+
+
+def run_scan(apk_path, output_dir=None, only=None, skip=None,
+             static_only=False, start_adb=True, on_progress=None):
+    """Run analyzers and write the HTML and JSON reports.
+
+    only: analyzer ids to run. None or an empty collection runs every analyzer
+    that is not skipped. skip: analyzer ids to skip. static_only also skips
+    the dynamic analyzers. start_adb tries `adb start-server` first (CLI default).
+    on_progress(tool_id, message) is optional and is not used by the CLI.
+    """
+    apk = apk_path
+    if not os.path.exists(apk):
+        raise FileNotFoundError(apk)
+
+    skip_set = set(skip or [])
+    if static_only:
+        skip_set.update(DYNAMIC_ANALYZERS)
+    only_set = set(only or [])
+
+    out_dir = output_dir or os.path.join(BASE, "output_reports")
+    os.makedirs(out_dir, exist_ok=True)
+
+    if start_adb and not static_only and shutil.which("adb"):
+        try: subprocess.run(["adb", "start-server"], capture_output=True, timeout=10)
+        except Exception: pass
+
+    print("=" * 60)
+    print(f"[*] androidsec scanning: {apk}")
+    print("=" * 60)
+
+    ctx = AppContext(apk)
+    tool_results = []
+
+    for tool_id, mod_path, _desc in ANALYZERS:
+        if tool_id in skip_set or (only_set and tool_id not in only_set):
+            continue
+
+        print(f"[*] Running {tool_id}...", end=" ", flush=True)
+        _notify(on_progress, tool_id, f"Running {tool_id}…")
+        t0 = time.time()
+        try:
+            mod = importlib.import_module(mod_path)
+            result = mod.run(ctx)
+            dt = time.time() - t0
+            tool_results.append(result)
+            flag = "SKIPPED" if result.get("skipped") else f"{len(result['findings'])} findings"
+            print(f"done ({dt:.1f}s, {flag})")
+        except Exception as e:
+            print(f"FAILED ({type(e).__name__}: {e})")
+            tool_results.append({"tool": tool_id, "output": f"[ERROR] {e}", "findings": [], "skipped": True})
+
+    raw = []
+    for r in tool_results:
+        raw.extend(r["findings"])
+
+    _notify(on_progress, "", "Writing the report…")
+    findings = RulesEngine(os.path.join(BASE, "rules", "rules.json")).enrich(raw)
+    findings = OWASPMapper(os.path.join(BASE, "rules", "owasp_mapping.json")).apply(findings)
+    summary = RiskEngine().compute(findings)
+
+    apk_obj = ctx.apk
+    pkg_name = _safe_meta(apk_obj, "get_package")
+    app_name = _safe_meta(apk_obj, "get_app_name", pkg_name)
+
+    target_sdk = "Unknown"
+    min_sdk = "Unknown"
+
+    root = ctx.get_manifest_root()
+    if root is not None:
+        sdk_node = root.find("uses-sdk")
+        if sdk_node is not None:
+            ns = "{http://schemas.android.com/apk/res/android}"
+            target_sdk = sdk_node.get(f"{ns}targetSdkVersion", "Unknown")
+            min_sdk = sdk_node.get(f"{ns}minSdkVersion", "Unknown")
+
+    if target_sdk == "Unknown":
+        target_sdk = _safe_meta(apk_obj, "get_target_sdk_version")
+    if min_sdk == "Unknown":
+        min_sdk = _safe_meta(apk_obj, "get_min_sdk_version")
+
+    metadata = {
+        "target":          apk,
+        "target_basename": os.path.basename(apk),
+        "timestamp":       datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "sha256":          ctx.sha256,
+        "size_human":      fmt_size(os.path.getsize(apk)),
+        "package":         pkg_name,
+        "app_name":        app_name,
+        "version_name":    _safe_meta(apk_obj, "get_androidversion_name"),
+        "min_sdk":         min_sdk,
+        "target_sdk":      target_sdk,
+    }
+
+    reporter = ReportGenerator(metadata, tool_results, findings, summary)
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    html_path = os.path.join(out_dir, f"security_report_{stamp}.html")
+    json_path = os.path.join(out_dir, f"security_report_{stamp}.json")
+    reporter.save_html(html_path)
+    reporter.save_json(json_path)
+
+    print("=" * 60)
+    print(f"[+] Risk Level : {summary['level']} ({summary['score']}/100)")
+    print(f"[+] Findings   : {summary['counts']}")
+    print(f"[+] HTML       : {html_path}")
+    print(f"[+] JSON       : {json_path}")
+
+    return {
+        "html_path": html_path,
+        "json_path": json_path,
+        "summary": summary,
+        "metadata": metadata,
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="androidsec",
@@ -113,91 +235,15 @@ def main():
             return
         only = set(selected)
 
-    out_dir = args.output
-    os.makedirs(out_dir, exist_ok=True)
+    run_scan(
+        apk,
+        output_dir=args.output,
+        only=only,
+        skip=skip,
+        static_only=args.static_only,
+        start_adb=not args.no_adb,
+    )
 
-    if not args.no_adb and not args.static_only and shutil.which("adb"):
-        try: subprocess.run(["adb", "start-server"], capture_output=True, timeout=10)
-        except Exception: pass
-
-    print("=" * 60)
-    print(f"[*] androidsec scanning: {apk}")
-    print("=" * 60)
-
-    ctx = AppContext(apk)
-    tool_results = []
-
-    for tool_id, mod_path, _desc in ANALYZERS:
-        if tool_id in skip or (only and tool_id not in only):
-            continue
-
-        print(f"[*] Running {tool_id}...", end=" ", flush=True)
-        t0 = time.time()
-        try:
-            mod = importlib.import_module(mod_path)
-            result = mod.run(ctx)
-            dt = time.time() - t0
-            tool_results.append(result)
-            flag = "SKIPPED" if result.get("skipped") else f"{len(result['findings'])} findings"
-            print(f"done ({dt:.1f}s, {flag})")
-        except Exception as e:
-            print(f"FAILED ({type(e).__name__}: {e})")
-            tool_results.append({"tool": tool_id, "output": f"[ERROR] {e}", "findings": [], "skipped": True})
-
-    raw = []
-    for r in tool_results:
-        raw.extend(r["findings"])
-
-    findings = RulesEngine(os.path.join(BASE, "rules", "rules.json")).enrich(raw)
-    findings = OWASPMapper(os.path.join(BASE, "rules", "owasp_mapping.json")).apply(findings)
-    summary = RiskEngine().compute(findings)
-
-    apk_obj = ctx.apk
-    pkg_name = _safe_meta(apk_obj, "get_package")
-    app_name = _safe_meta(apk_obj, "get_app_name", pkg_name) 
-    
-    target_sdk = "Unknown"
-    min_sdk = "Unknown"
-    
-    # Ultimate XML extraction
-    root = ctx.get_manifest_root()
-    if root is not None:
-        sdk_node = root.find("uses-sdk")
-        if sdk_node is not None:
-            ns = "{http://schemas.android.com/apk/res/android}"
-            target_sdk = sdk_node.get(f"{ns}targetSdkVersion", "Unknown")
-            min_sdk = sdk_node.get(f"{ns}minSdkVersion", "Unknown")
-
-    if target_sdk == "Unknown":
-        target_sdk = _safe_meta(apk_obj, "get_target_sdk_version")
-    if min_sdk == "Unknown":
-        min_sdk = _safe_meta(apk_obj, "get_min_sdk_version")
-
-    metadata = {
-        "target":          apk,
-        "target_basename": os.path.basename(apk),
-        "timestamp":       datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "sha256":          ctx.sha256,
-        "size_human":      fmt_size(os.path.getsize(apk)),
-        "package":         pkg_name,
-        "app_name":        app_name,
-        "version_name":    _safe_meta(apk_obj, "get_androidversion_name"),
-        "min_sdk":         min_sdk,
-        "target_sdk":      target_sdk,
-    }
-
-    reporter = ReportGenerator(metadata, tool_results, findings, summary)
-    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    html_path = os.path.join(out_dir, f"security_report_{stamp}.html")
-    json_path = os.path.join(out_dir, f"security_report_{stamp}.json")
-    reporter.save_html(html_path)
-    reporter.save_json(json_path)
-
-    print("=" * 60)
-    print(f"[+] Risk Level : {summary['level']} ({summary['score']}/100)")
-    print(f"[+] Findings   : {summary['counts']}")
-    print(f"[+] HTML       : {html_path}")
-    print(f"[+] JSON       : {json_path}")
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% block title %}Device — androidsec{% endblock %}
+{% block body %}
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">Device</p>
+      <h1>Connect a device</h1>
+      <p class="lede">Dynamic checks use a phone or emulator you are authorized to test. Pick one adb can already see, or connect an IP. Install is skipped when the app is already there.</p>
+    </div>
+    <ol class="rail" aria-label="Progress">
+      <li {% if pending %}class="done"{% endif %}><span>1</span> Set up</li>
+      <li class="current"><span>2</span> Device</li>
+      <li><span>3</span> Scan</li>
+    </ol>
+  </header>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="notices">
+        {% for category, message in messages %}
+          <p class="notice {{ category }}">{{ message }}</p>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  {% if pending %}
+    <section class="card">
+      <div class="section-head">
+        <h2>Dynamic scan waiting</h2>
+        <p class="muted">These checks run after a ready device is authorized.</p>
+      </div>
+      <p class="analyzer-pills">
+        {% for name in pending.analyzers %}
+          <code>{{ name }}</code>
+        {% endfor %}
+      </p>
+      <form method="post" action="{{ url_for('device.cancel') }}">
+        <button type="submit">Cancel and edit the assessment</button>
+      </form>
+    </section>
+  {% endif %}
+
+  {% if not adb_available %}
+    <section class="card">
+      <h2>adb is missing</h2>
+      <p>Install Android Debug Bridge and start this app again. The device step needs the <code>adb</code> command on PATH.</p>
+      <p><a class="ghost" href="{{ url_for('assess') }}">Back to assessment</a></p>
+    </section>
+  {% else %}
+    {% if adb_error %}
+      <p class="notice error">{{ adb_error }}</p>
+    {% endif %}
+    {% if not has_ready %}
+      <p class="notice error">No device is ready. Plug in a phone and accept the USB debugging prompt, or connect an emulator by IP.</p>
+    {% endif %}
+
+    <form id="device-form" method="post" action="{{ url_for('device.connect') }}">
+      {% if pending %}
+        {% for name in pending.analyzers %}
+          <input type="hidden" name="analyzers" value="{{ name }}">
+        {% endfor %}
+      {% endif %}
+
+      <section class="card">
+        <div class="section-head">
+          <h2>1. Devices adb can see</h2>
+          <p class="muted">Unauthorized phones stay in the list until you accept the prompt on the device.</p>
+        </div>
+        {% if devices %}
+          <ul class="choices">
+            {% for item in devices %}
+              <li class="apk-card">
+                <label>
+                  <input type="radio" name="serial" value="{{ item.serial }}" {% if item.serial == selected %}checked{% endif %} {% if not item.ready %}disabled{% endif %}>
+                  <span class="apk-id">
+                    <span class="name">{{ item.serial }}</span>
+                    <span class="muted">{{ item.model or "Model unknown" }} · {{ item.label }}</span>
+                  </span>
+                </label>
+                <span class="pill {{ item.pill }}">{{ item.label }}</span>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="empty">
+            <p>No devices yet.</p>
+            <p class="muted">Connect an IP below, or attach a device and refresh.</p>
+          </div>
+        {% endif %}
+        {% if facts %}
+          <div class="facts">
+            {% for fact in facts %}
+              <div class="fact"><span>{{ fact.label }}</span><strong>{{ fact.value }}</strong></div>
+            {% endfor %}
+          </div>
+        {% endif %}
+        {% if facts_error %}
+          <p class="notice error">{{ facts_error }}</p>
+        {% endif %}
+        {% if identity %}
+          <p class="muted">Shell identity: {{ identity }}</p>
+        {% endif %}
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <h2>2. Connect by IP</h2>
+          <p class="muted">Use this when nothing is plugged in. Wireless debugging on the device must already be on. The default port is 5555.</p>
+        </div>
+        <div class="fields">
+          <label class="field grow">IP address
+            <input name="host" inputmode="decimal" autocomplete="off" placeholder="192.168.0.10" value="{{ request.args.get('host', '') }}">
+          </label>
+          <label class="field port">Port
+            <input name="port" inputmode="numeric" value="{{ request.args.get('port', '5555') }}">
+          </label>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <h2>3. Application</h2>
+          <p class="muted">Install runs only when this package is missing on the selected device.</p>
+        </div>
+        {% if apks %}
+          <label class="field">APK
+            <select name="apk">
+              {% for apk in apks %}
+                <option value="{{ apk.key }}" {% if apk.key == selected_apk %}selected{% endif %}>{{ apk.name }} — {{ apk.detail }}</option>
+              {% endfor %}
+            </select>
+          </label>
+        {% else %}
+          <div class="empty">
+            <p>No APK files yet.</p>
+            <p class="muted">Add one on the assessment page.</p>
+          </div>
+        {% endif %}
+        {% if install and install.installed %}
+          <p class="notice">{{ package }} is already installed. {{ install.path }}</p>
+        {% elif install and install.error %}
+          <p class="notice error">{{ install.error }}</p>
+        {% elif package and selected %}
+          <p class="muted">{{ package }} is not installed on the selected device.</p>
+        {% elif selected_apk and not package %}
+          <p class="muted">This APK has no package name, so it cannot be installed from here.</p>
+        {% endif %}
+      </section>
+
+      <section class="card auth-box">
+        <h2>4. Authorization</h2>
+        <p id="auth-error" class="notice error" hidden>Check the box below before connecting, installing, requesting root, or starting a dynamic scan.</p>
+        <label class="check">
+          <input id="authorized" type="checkbox" name="authorized" value="yes">
+          <span class="check-copy">
+            <strong>{{ auth_text }}</strong>
+            <span>Required for connect, disconnect, install, root, and a dynamic scan.</span>
+          </span>
+        </label>
+      </section>
+
+      <div class="btn-row device-actions">
+        <button type="submit">Connect</button>
+        <button type="submit" formaction="{{ url_for('device.disconnect') }}" {% if not selected or ':' not in selected %}disabled{% endif %}>Disconnect</button>
+        <button type="submit" formaction="{{ url_for('device.install') }}" {% if not selected or not package or (install and (install.installed or install.error)) %}disabled{% endif %}>
+          {% if install and install.installed %}Already installed{% else %}Install APK{% endif %}
+        </button>
+        <button type="submit" formaction="{{ url_for('device.root') }}" {% if not selected %}disabled{% endif %}>Request root</button>
+        {% if pending %}
+          <button type="submit" class="primary" formaction="{{ url_for('start_scan') }}" {% if not selected %}disabled{% endif %}>Start scan</button>
+        {% endif %}
+        <button type="submit" formmethod="get" formaction="{{ url_for('device.page') }}">Refresh</button>
+        {% if not pending %}
+          <a class="ghost" href="{{ url_for('assess') }}">Back to assessment</a>
+        {% endif %}
+      </div>
+    </form>
+  {% endif %}
+
+  <script>
+    var form = document.getElementById("device-form");
+    var authError = document.getElementById("auth-error");
+    if (form) {
+      form.addEventListener("submit", function (event) {
+        var submitter = event.submitter;
+        var method = submitter ? (submitter.getAttribute("formmethod") || "") : "";
+        if (method.toLowerCase() === "get") {
+          return;
+        }
+        var box = document.getElementById("authorized");
+        if (!box || !box.checked) {
+          event.preventDefault();
+          if (authError) {
+            authError.hidden = false;
+          }
+          if (box) {
+            box.focus();
+          }
+        }
+      });
+    }
+  </script>
+{% endblock %}

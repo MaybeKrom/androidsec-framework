@@ -47,7 +47,8 @@ class ReportGenerator:
             "tool_outputs": [
                 {"tool": t["tool"],
                  "output": t["output"],
-                 "skipped": t.get("skipped", False)}
+                 "skipped": t.get("skipped", False),
+                 "finding_count": len(t.get("findings") or [])}
                 for t in self.tool_results
             ],
         }
@@ -138,7 +139,7 @@ a.exploit:hover{{background:#9f2d3a}}
             parts.append('<p>No findings were identified.</p>')
         else:
             parts.append('<table><tr><th>Severity</th><th>Confidence</th><th>Rule</th>'
-                         '<th>Title</th><th>Evidence</th><th>Recommendation</th>'
+                         '<th>Vulnerability</th><th>Evidence</th><th>Recommendation</th>'
                          '<th>MASVS</th><th>Exploit</th></tr>')
             report_name = os.path.basename(path)
             for index, f in enumerate(sorted_findings(self.findings)):
@@ -203,3 +204,11 @@ a.exploit:hover{{background:#9f2d3a}}
 
         with open(path, "w", encoding="utf-8") as f:
             f.write("".join(parts))
+
+    def render_pdf_html(self):
+        from reporter.pdf_report import render_html
+        return render_html(self)
+
+    def save_pdf(self, path):
+        from reporter.pdf_report import write_pdf
+        write_pdf(self, path)

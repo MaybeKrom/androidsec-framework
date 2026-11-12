@@ -230,6 +230,7 @@ def _send_report_file(filename):
         return send_file(path, mimetype="text/html")
     with open(path, encoding="utf-8") as handle:
         html = handle.read()
+    html = html.replace("<th>Title</th>", "<th>Vulnerability</th>", 1)
     html = html.replace("<body>", "<body>" + _pdf_bar(filename[:-5] + ".pdf"), 1)
     return Response(html, mimetype="text/html; charset=utf-8")
 
@@ -244,17 +245,27 @@ def _send_report_pdf(filename):
     pdf_path = os.path.join(REPORT_DIR, filename)
     if not _inside(pdf_path, REPORT_DIR):
         abort(404)
-    fresh = os.path.isfile(pdf_path) and os.path.getmtime(pdf_path) >= os.path.getmtime(html_path)
-    if not fresh:
-        try:
-            from weasyprint import HTML
-            HTML(filename=html_path, base_url=REPORT_DIR).write_pdf(pdf_path)
-        except ImportError:
-            page = "<!DOCTYPE html><title>PDF unavailable</title><p>Install weasyprint to download this report as PDF.</p>"
-            return Response(page, status=503, mimetype="text/html; charset=utf-8")
-        except Exception as exc:
-            page = f"<!DOCTYPE html><title>PDF failed</title><p>Could not build the PDF. {escape(exc)}</p>"
-            return Response(page, status=500, mimetype="text/html; charset=utf-8")
+    json_path = os.path.join(REPORT_DIR, html_name[:-5] + ".json")
+    if not _inside(json_path, REPORT_DIR) or not os.path.isfile(json_path):
+        page = "<!DOCTYPE html><title>PDF unavailable</title><p>The JSON report next to this HTML file is missing, so the PDF cannot be built.</p>"
+        return Response(page, status=404, mimetype="text/html; charset=utf-8")
+    try:
+        import json
+        from reporter.report_generator import ReportGenerator
+        with open(json_path, encoding="utf-8") as handle:
+            data = json.load(handle)
+        ReportGenerator(
+            data.get("metadata") or {},
+            data.get("tool_outputs") or [],
+            data.get("findings") or [],
+            data.get("summary") or {},
+        ).save_pdf(pdf_path)
+    except ImportError:
+        page = "<!DOCTYPE html><title>PDF unavailable</title><p>Install weasyprint to download this report as PDF.</p>"
+        return Response(page, status=503, mimetype="text/html; charset=utf-8")
+    except Exception as exc:
+        page = f"<!DOCTYPE html><title>PDF failed</title><p>Could not build the PDF. {escape(exc)}</p>"
+        return Response(page, status=500, mimetype="text/html; charset=utf-8")
     return send_file(
         os.path.realpath(pdf_path),
         mimetype="application/pdf",

@@ -171,5 +171,96 @@ class TestMasvsLinks(unittest.TestCase):
         self.assertIn(">Review</a>", report_html)
 
 
+class TestPdfReport(unittest.TestCase):
+    def test_html_findings_column_is_vulnerability(self):
+        findings = [
+            {
+                "severity": "High",
+                "confidence": "High",
+                "rule_id": "EXPORTED",
+                "title": "Exported component",
+                "evidence": "activity",
+                "recommendation": "Set exported false",
+                "masvs": "MASVS-PLATFORM-1",
+            }
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "security_report_sample.html")
+            _report(findings).save_html(path)
+            report_html = Path(path).read_text(encoding="utf-8")
+        self.assertIn("<th>Vulnerability</th>", report_html)
+        self.assertNotIn("<th>Title</th>", report_html)
+
+    def test_pdf_document_keeps_the_assessment_and_the_disclaimer(self):
+        from reporter.pdf_report import DISCLAIMER
+
+        findings = [
+            {
+                "severity": "High",
+                "confidence": "High",
+                "rule_id": "RESILIENCE_ROOT_CHECK_PRESENT",
+                "title": "Root detection implemented",
+                "description": "A root check is present.",
+                "evidence": "isrooted",
+                "recommendation": "Keep the check.",
+                "masvs": "MASVS-RESILIENCE-1",
+            }
+        ]
+        tools = [
+            {"tool": "apk_info", "output": "=== APK Information ===", "skipped": False, "finding_count": 1},
+            {"tool": "frida", "output": "device required", "skipped": True},
+            {"tool": "legacy", "output": "old record", "skipped": False},
+        ]
+        report = ReportGenerator(
+            {
+                "target": "sample.apk",
+                "target_basename": "sample.apk",
+                "timestamp": "2026-11-11 00:00:00",
+                "sha256": "abc",
+                "package": "example.app",
+                "score": 0,
+            },
+            tools,
+            findings,
+            {"level": "HIGH", "score": 40, "counts": {"High": 1}},
+        )
+        document = report.render_pdf_html()
+        self.assertEqual(
+            DISCLAIMER,
+            "This report is an automated assessment and provides an approximate security "
+            "overview. It is not guaranteed to be 100% accurate. Some vulnerabilities may "
+            "not have been detected.",
+        )
+        self.assertEqual(document.count(DISCLAIMER), 2)
+        self.assertIn("androsec", document)
+        self.assertIn("Executive summary", document)
+        self.assertIn(">Vulnerability</th>", document)
+        self.assertIn("apk_info", document)
+        self.assertIn("1 finding", document)
+        self.assertIn("Skipped", document)
+        self.assertNotIn("0 findings", document)
+        self.assertIn("Root detection implemented", document)
+        self.assertIn("isrooted", document)
+        self.assertNotIn("<th>Title</th>", document)
+
+    def test_save_pdf_writes_a_pdf(self):
+        findings = [
+            {
+                "severity": "Info",
+                "confidence": "Low",
+                "rule_id": "NOTE",
+                "title": "Launcher activity",
+                "evidence": "MainActivity",
+                "recommendation": "None",
+                "masvs": "N/A",
+            }
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "sample.pdf")
+            _report(findings).save_pdf(path)
+            data = Path(path).read_bytes()
+        self.assertTrue(data.startswith(b"%PDF"))
+
+
 if __name__ == "__main__":
     unittest.main()

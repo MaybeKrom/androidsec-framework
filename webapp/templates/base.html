@@ -3,14 +3,23 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}androidsec{% endblock %}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <title>{% block title %}androsec{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=redesign">
 </head>
 <body class="{% block body_class %}{% endblock %}">
   <header class="top">
     <a class="brand" href="{{ url_for('home') }}">
-      <span class="mark" aria-hidden="true">as</span>
-      <span>androidsec</span>
+      <svg class="mark" viewBox="0 0 68 32" aria-hidden="true">
+        <rect x="1" y="1" width="14" height="14" rx="3" fill="#19F9E0"/>
+        <rect x="19" y="1" width="14" height="14" rx="3" fill="none" stroke="#2B3A55" stroke-width="1.6"/>
+        <rect x="37" y="1" width="14" height="14" rx="3" fill="#B8FF30"/>
+        <rect x="55" y="1" width="14" height="14" rx="3" fill="none" stroke="#2B3A55" stroke-width="1.6"/>
+        <rect x="1" y="17" width="14" height="14" rx="3" fill="none" stroke="#2B3A55" stroke-width="1.6"/>
+        <rect x="19" y="17" width="14" height="14" rx="3" fill="#B8FF30"/>
+        <rect x="37" y="17" width="14" height="14" rx="3" fill="none" stroke="#2B3A55" stroke-width="1.6"/>
+        <rect x="55" y="17" width="14" height="14" rx="3" fill="#B8FF30"/>
+      </svg>
+      <span class="word">andro<span>sec</span></span>
     </a>
     <nav>
       <a href="{{ url_for('home') }}" {% if request.endpoint == 'home' %}class="active"{% endif %}>Home</a>

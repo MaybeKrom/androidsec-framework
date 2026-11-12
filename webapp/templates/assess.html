@@ -1,16 +1,16 @@
 {% extends "base.html" %}
-{% block title %}Assessment — androidsec{% endblock %}
+{% block title %}Assessment — androsec{% endblock %}
 {% block body_class %}page-assess{% endblock %}
 {% block body %}
   <header class="page-head">
     <div>
       <p class="eyebrow">Assessment</p>
-      <h1>Set up the scan</h1>
-      <p class="lede">Choose the application and the checks. The report opens in this tab when the run finishes.</p>
+      <h1>Choose an APK</h1>
+      <p class="lede">Upload an app you are allowed to test, or select one that is already here. Then analyze it or decompile it.</p>
     </div>
     <ol class="rail" aria-label="Progress">
-      <li class="current"><span>1</span> Set up</li>
-      <li><span>2</span> Scan</li>
+      <li class="current"><span>1</span> APK</li>
+      <li><span>2</span> Analyzers</li>
       <li><span>3</span> Report</li>
     </ol>
   </header>
@@ -27,40 +27,63 @@
 
   <section class="card">
     <div class="section-head">
-      <h2>1. Application</h2>
-      <p class="muted">Upload a new APK, or select one that is already here.</p>
+      <h2>Upload</h2>
+      <p class="muted">The file must contain an Android manifest. 256 MB maximum.</p>
     </div>
     <form id="upload-form" class="upload" action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
       <label class="drop">
         <input id="apk-file" type="file" name="apk" accept=".apk,application/vnd.android.package-archive" required>
         <span class="drop-title">Choose an APK</span>
-        <span class="muted" id="file-name">Must contain an Android manifest. 256 MB maximum.</span>
+        <span class="muted" id="file-name">No file chosen yet.</span>
       </label>
       <button type="submit" id="upload-button" class="primary">Upload</button>
     </form>
+  </section>
 
+  <section class="card">
+    <div class="section-head">
+      <h2>Library</h2>
+      <p class="muted">Samples stay in the project. Uploads can be deleted.</p>
+    </div>
     {% if apks %}
-      <ul class="choices">
-        {% for apk in apks %}
-          <li class="apk-card" data-apk-name="{{ apk.name }}">
-            <label>
-              <input form="scan-form" type="radio" name="apk" value="{{ apk.key }}" {% if apk.key == selected %}checked{% endif %}>
-              <span class="apk-id">
-                <span class="name">{{ apk.name }}</span>
-                <span class="muted">{{ apk.detail }} · {{ apk.size }} · {{ apk.where }}</span>
-              </span>
-            </label>
-            {% if apk.deletable %}
-              <form class="delete-apk" method="post" action="{{ url_for('delete_apk') }}" data-name="{{ apk.name }}">
-                <input type="hidden" name="apk" value="{{ apk.key }}">
-                <button type="submit" class="danger">Delete</button>
-              </form>
-            {% else %}
-              <span class="pill">Sample</span>
-            {% endif %}
-          </li>
-        {% endfor %}
-      </ul>
+      <form id="pick-form" method="post" action="{{ url_for('decompile.start') }}">
+        <ul class="choices">
+          {% for apk in apks %}
+            <li class="apk-card" data-apk-name="{{ apk.name }}">
+              <label>
+                <input type="radio" name="apk" value="{{ apk.key }}" {% if apk.key == selected %}checked{% endif %}>
+                <span class="apk-id">
+                  <span class="name">{{ apk.name }}</span>
+                  <span class="muted">{{ apk.detail }} · {{ apk.size }} · {{ apk.where }}</span>
+                </span>
+              </label>
+              {% if apk.deletable %}
+                <button type="submit" class="danger" form="delete-{{ loop.index }}">Delete</button>
+              {% else %}
+                <span class="pill">Sample</span>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+        <div class="choice">
+          <div>
+            <p class="eyebrow">Selected</p>
+            <h2 id="choice-name">APK</h2>
+            <p class="muted">Analyze opens the analyzer list. Decompile starts decoding now.</p>
+          </div>
+          <div class="choice-actions">
+            <button type="submit" class="primary" formmethod="get" formaction="{{ url_for('analyzers') }}">Analyze</button>
+            <button type="submit">Decompile</button>
+          </div>
+        </div>
+      </form>
+      {% for apk in apks %}
+        {% if apk.deletable %}
+          <form id="delete-{{ loop.index }}" class="delete-apk" method="post" action="{{ url_for('delete_apk') }}" data-name="{{ apk.name }}" hidden>
+            <input type="hidden" name="apk" value="{{ apk.key }}">
+          </form>
+        {% endif %}
+      {% endfor %}
     {% else %}
       <div class="empty">
         <p>No APK files yet.</p>
@@ -68,62 +91,6 @@
       </div>
     {% endif %}
   </section>
-
-  <form id="scan-form" action="{{ url_for('start_scan') }}" method="post">
-    <section class="card">
-      <div class="section-head">
-        <h2>2. Analyzers</h2>
-        <p class="muted">Static checks read the APK only. Dynamic checks open the device step and do not start an emulator. <code>cloud_checker</code> may contact a Firebase host named in the app.</p>
-      </div>
-      <div class="btn-row">
-        <button type="button" id="select-static">Select static</button>
-        <button type="button" id="select-all">Select all</button>
-        <button type="button" id="clear-all">Clear</button>
-      </div>
-
-      <h3>Static <span class="count">{{ static_analyzers|length }}</span></h3>
-      <ul class="analyzers">
-        {% for analyzer in static_analyzers %}
-          <li>
-            <label class="check">
-              <input type="checkbox" name="analyzers" value="{{ analyzer.id }}" data-kind="static" checked>
-              <span class="check-copy">
-                <code>{{ analyzer.id }}</code>
-                <span>{{ analyzer.description }}</span>
-              </span>
-            </label>
-          </li>
-        {% endfor %}
-      </ul>
-
-      <h3>Dynamic <span class="count">{{ dynamic_analyzers|length }}</span></h3>
-      <ul class="analyzers">
-        {% for analyzer in dynamic_analyzers %}
-          <li>
-            <label class="check">
-              <input type="checkbox" name="analyzers" value="{{ analyzer.id }}" data-kind="dynamic">
-              <span class="check-copy">
-                <code>{{ analyzer.id }}</code>
-                <span>{{ analyzer.description }}</span>
-              </span>
-            </label>
-          </li>
-        {% endfor %}
-      </ul>
-    </section>
-
-    <div class="launch">
-      <div>
-        <p class="launch-kicker">Ready to run</p>
-        <p class="launch-target" id="chosen-apk">No APK selected</p>
-        <p class="launch-meta" id="chosen-count">0 analyzers</p>
-      </div>
-      <div class="launch-actions">
-        <button type="submit" id="decompile-btn" formaction="{{ url_for('decompile.start') }}" {% if not apks %}disabled{% endif %}>Decompile</button>
-        <button type="submit" class="primary" id="start-scan" {% if not apks %}disabled{% endif %}>Start scan</button>
-      </div>
-    </div>
-  </form>
 
   <script>
     var uploadForm = document.getElementById("upload-form");
@@ -133,7 +100,7 @@
       fileInput.addEventListener("change", function () {
         fileName.textContent = fileInput.files.length
           ? fileInput.files[0].name
-          : "Must contain an Android manifest. 256 MB maximum.";
+          : "No file chosen yet.";
       });
       uploadForm.addEventListener("submit", function () {
         var button = document.getElementById("upload-button");
@@ -151,57 +118,18 @@
       });
     });
 
-    function setKind(kind, checked) {
-      document.querySelectorAll('input[data-kind="' + kind + '"]').forEach(function (box) {
-        box.checked = checked;
-      });
+    var choiceName = document.getElementById("choice-name");
+    function refreshChoice() {
+      var selected = document.querySelector('#pick-form input[name="apk"]:checked');
+      if (!choiceName || !selected) {
+        return;
+      }
+      var card = selected.closest(".apk-card");
+      choiceName.textContent = card ? card.getAttribute("data-apk-name") : "APK";
     }
-
-    function refreshSummary() {
-      var selected = document.querySelector('input[name="apk"]:checked');
-      var nameEl = document.getElementById("chosen-apk");
-      var countEl = document.getElementById("chosen-count");
-      if (nameEl) {
-        if (!selected) {
-          nameEl.textContent = "No APK selected";
-        } else {
-          var card = selected.closest(".apk-card");
-          nameEl.textContent = card ? card.getAttribute("data-apk-name") : "APK selected";
-        }
-      }
-      var dynamic = document.querySelectorAll('input[data-kind="dynamic"]:checked').length;
-      var start = document.getElementById("start-scan");
-      if (countEl) {
-        var count = document.querySelectorAll('input[name="analyzers"]:checked').length;
-        var label = count === 1 ? "1 analyzer" : count + " analyzers";
-        if (dynamic) {
-          label += " · device step next";
-        }
-        countEl.textContent = label;
-      }
-      if (start) {
-        start.textContent = dynamic ? "Continue to device" : "Start scan";
-      }
-    }
-
-    document.getElementById("select-static").addEventListener("click", function () {
-      setKind("static", true);
-      setKind("dynamic", false);
-      refreshSummary();
+    document.querySelectorAll('#pick-form input[name="apk"]').forEach(function (input) {
+      input.addEventListener("change", refreshChoice);
     });
-    document.getElementById("select-all").addEventListener("click", function () {
-      setKind("static", true);
-      setKind("dynamic", true);
-      refreshSummary();
-    });
-    document.getElementById("clear-all").addEventListener("click", function () {
-      setKind("static", false);
-      setKind("dynamic", false);
-      refreshSummary();
-    });
-    document.querySelectorAll('input[name="apk"], input[name="analyzers"]').forEach(function (input) {
-      input.addEventListener("change", refreshSummary);
-    });
-    refreshSummary();
+    refreshChoice();
   </script>
 {% endblock %}

@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Analyzers — androsec{% endblock %}
+{% block body_class %}page-assess{% endblock %}
+{% block body %}
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">Assessment</p>
+      <h1>Select analyzers</h1>
+      <p class="lede">{{ apk.name }} · {{ apk.detail }} · {{ apk.size }}</p>
+    </div>
+    <ol class="rail" aria-label="Progress">
+      <li class="done"><span>1</span> APK</li>
+      <li class="current"><span>2</span> Analyzers</li>
+      <li><span>3</span> Report</li>
+    </ol>
+  </header>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="notices">
+        {% for category, message in messages %}
+          <p class="notice {{ category }}">{{ message }}</p>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <form id="scan-form" action="{{ url_for('start_scan') }}" method="post">
+    <input type="hidden" name="apk" value="{{ apk.key }}">
+
+    <section class="card">
+      <div class="section-head spread">
+        <div>
+          <h2>Static <span class="count">{{ static_analyzers|length }}</span></h2>
+          <p class="muted">These checks read the APK only. <code>cloud_checker</code> may contact a Firebase host named in the app.</p>
+        </div>
+        <div class="btn-row">
+          <button type="button" id="select-static">Select static</button>
+          <button type="button" id="select-all">Select all</button>
+          <button type="button" id="clear-all">Clear</button>
+        </div>
+      </div>
+      <ul class="tool-grid">
+        {% for analyzer in static_analyzers %}
+          <li>
+            <label class="tool-card">
+              <input type="checkbox" name="analyzers" value="{{ analyzer.id }}" data-kind="static" checked>
+              <span class="tool-copy">
+                <code>{{ analyzer.id }}</code>
+                <span>{{ analyzer.description }}</span>
+              </span>
+            </label>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <h2>Dynamic <span class="count">{{ dynamic_analyzers|length }}</span></h2>
+        <p class="muted">Left off until you choose them. A dynamic scan opens the device step and does not start an emulator.</p>
+      </div>
+      <ul class="tool-grid">
+        {% for analyzer in dynamic_analyzers %}
+          <li>
+            <label class="tool-card">
+              <input type="checkbox" name="analyzers" value="{{ analyzer.id }}" data-kind="dynamic">
+              <span class="tool-copy">
+                <code>{{ analyzer.id }}</code>
+                <span>{{ analyzer.description }}</span>
+              </span>
+            </label>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <div class="launch">
+      <div>
+        <p class="launch-kicker">Ready to run</p>
+        <p class="launch-target">{{ apk.name }}</p>
+        <p class="launch-meta" id="chosen-count">0 analyzers</p>
+      </div>
+      <div class="launch-actions">
+        <a class="ghost" href="{{ url_for('assess', selected=apk.key) }}">Back</a>
+        <button type="submit" class="primary" id="start-scan">Start scan</button>
+      </div>
+    </div>
+  </form>
+
+  <script>
+    function setKind(kind, checked) {
+      document.querySelectorAll('input[data-kind="' + kind + '"]').forEach(function (box) {
+        box.checked = checked;
+      });
+    }
+
+    function refreshSummary() {
+      var countEl = document.getElementById("chosen-count");
+      var start = document.getElementById("start-scan");
+      var dynamic = document.querySelectorAll('input[data-kind="dynamic"]:checked').length;
+      var count = document.querySelectorAll('input[name="analyzers"]:checked').length;
+      if (countEl) {
+        var label = count === 1 ? "1 analyzer" : count + " analyzers";
+        if (dynamic) {
+          label += " · device step next";
+        }
+        countEl.textContent = label;
+      }
+      if (start) {
+        start.textContent = dynamic ? "Continue to device" : "Start scan";
+      }
+    }
+
+    document.getElementById("select-static").addEventListener("click", function () {
+      setKind("static", true);
+      setKind("dynamic", false);
+      refreshSummary();
+    });
+    document.getElementById("select-all").addEventListener("click", function () {
+      setKind("static", true);
+      setKind("dynamic", true);
+      refreshSummary();
+    });
+    document.getElementById("clear-all").addEventListener("click", function () {
+      setKind("static", false);
+      setKind("dynamic", false);
+      refreshSummary();
+    });
+    document.querySelectorAll('input[name="analyzers"]').forEach(function (input) {
+      input.addEventListener("change", refreshSummary);
+    });
+    refreshSummary();
+  </script>
+{% endblock %}

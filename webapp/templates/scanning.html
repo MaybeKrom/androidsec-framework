@@ -1,24 +1,44 @@
 {% extends "base.html" %}
-{% block title %}Scanning — androidsec{% endblock %}
+{% block title %}Scanning — androsec{% endblock %}
 {% block body_class %}page-scan{% endblock %}
 {% block body %}
+  {% set total = job.total or 1 %}
+  {% set percent = 100 if job.status == 'done' else ((job.completed or 0) * 100 // total) %}
   <header class="page-head">
     <div>
       <p class="eyebrow">Assessment</p>
       <h1 id="status-title">Scan running</h1>
     </div>
     <ol class="rail" aria-label="Progress">
-      <li class="done"><span>1</span> Set up</li>
-      <li class="current"><span>2</span> Scan</li>
-      <li><span>3</span> Report</li>
+      <li class="done"><span>1</span> APK</li>
+      <li class="done"><span>2</span> Analyzers</li>
+      <li class="current"><span>3</span> Scan</li>
     </ol>
   </header>
 
-  <section class="card scan-panel" id="scan-panel">
-    <div class="spinner" id="spinner" aria-hidden="true"></div>
-    <p class="scan-target">{{ job.apk_name }}</p>
-    <p class="scan-message" id="message">{{ job.message }}</p>
-    <p class="elapsed" id="elapsed">00:00</p>
+  <section class="card scan-board" id="scan-panel">
+    <div class="scan-summary">
+      <p class="scan-target">{{ job.apk_name }}</p>
+      <p class="scan-message" id="message">{{ job.message }}</p>
+      <div class="progress-row">
+        <div class="progress-track" id="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ percent }}" aria-label="Analyzers completed">
+          <div class="progress-fill" id="progress-fill" style="width: {{ percent }}%"></div>
+        </div>
+        <strong id="progress-label">{{ percent }}%</strong>
+      </div>
+      <p class="elapsed" id="elapsed">00:00</p>
+    </div>
+
+    <ul class="progress-list" id="progress-list">
+      {% for step in job.steps or [] %}
+        <li data-id="{{ step.id }}" class="{{ step.state }}">
+          <span class="tick" aria-hidden="true">{% if step.state == 'done' %}✓{% elif step.state == 'running' %}•{% endif %}</span>
+          <span class="name">{{ step.id }}</span>
+          <span class="state">{% if step.state == 'done' %}Done{% elif step.state == 'running' %}Running{% else %}Waiting{% endif %}</span>
+        </li>
+      {% endfor %}
+    </ul>
+
     <p id="error" class="error-box" hidden></p>
     <p class="scan-note" id="scan-note">You can leave this page open. The report replaces it when the scan finishes.</p>
     <p class="scan-actions"><a class="ghost" href="{{ url_for('assess') }}">Back to assessment</a></p>
@@ -29,10 +49,12 @@
     const started = Date.now();
     const messageEl = document.getElementById("message");
     const errorEl = document.getElementById("error");
-    const spinner = document.getElementById("spinner");
     const elapsedEl = document.getElementById("elapsed");
     const titleEl = document.getElementById("status-title");
     const noteEl = document.getElementById("scan-note");
+    const fillEl = document.getElementById("progress-fill");
+    const labelEl = document.getElementById("progress-label");
+    const barEl = document.getElementById("progress");
 
     function formatElapsed(total) {
       const minutes = Math.floor(total / 60);
@@ -45,8 +67,35 @@
       elapsedEl.textContent = formatElapsed(seconds);
     }, 1000);
 
+    function paintStep(step) {
+      var row = document.querySelector('[data-id="' + CSS.escape(step.id) + '"]');
+      if (!row) {
+        return;
+      }
+      row.className = step.state || "pending";
+      var tick = row.querySelector(".tick");
+      var state = row.querySelector(".state");
+      if (step.state === "done") {
+        tick.textContent = "✓";
+        state.textContent = "Done";
+      } else if (step.state === "running") {
+        tick.textContent = "•";
+        state.textContent = "Running";
+      } else {
+        tick.textContent = "";
+        state.textContent = "Waiting";
+      }
+    }
+
+    function paintProgress(data) {
+      var percent = typeof data.percent === "number" ? data.percent : 0;
+      fillEl.style.width = percent + "%";
+      labelEl.textContent = percent + "%";
+      barEl.setAttribute("aria-valuenow", String(percent));
+      (data.steps || []).forEach(paintStep);
+    }
+
     function stopWaiting(text) {
-      spinner.hidden = true;
       titleEl.textContent = "Scan failed";
       noteEl.hidden = true;
       errorEl.hidden = false;
@@ -60,6 +109,7 @@
         if (data.message) {
           messageEl.textContent = data.message;
         }
+        paintProgress(data);
         if (data.status === "done") {
           titleEl.textContent = "Opening the report";
           messageEl.textContent = "Scan finished";
@@ -74,7 +124,7 @@
       } catch (err) {
         messageEl.textContent = "Waiting for the server…";
       }
-      setTimeout(poll, 2000);
+      setTimeout(poll, 800);
     }
 
     poll();

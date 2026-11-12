@@ -105,6 +105,7 @@ def run_scan(apk_path, output_dir=None, only=None, skip=None,
         except Exception as e:
             print(f"FAILED ({type(e).__name__}: {e})")
             tool_results.append({"tool": tool_id, "output": f"[ERROR] {e}", "findings": [], "skipped": True})
+        _notify(on_progress, tool_id, f"Done {tool_id}")
 
     raw = []
     for r in tool_results:

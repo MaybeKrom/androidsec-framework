@@ -4,7 +4,8 @@ import os
 import re
 import sys
 
-from flask import Flask, abort, flash, jsonify, redirect, render_template, request, send_file, session, url_for
+from flask import Flask, Response, abort, flash, jsonify, redirect, render_template, request, send_file, session, url_for
+from markupsafe import escape
 from werkzeug.utils import secure_filename
 
 WEB_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -24,6 +25,7 @@ from webapp.jobs import create_job, get_job, is_live_report  # noqa: E402
 from webapp.exploit import bp as exploit_bp  # noqa: E402
 
 _REPORT_NAME = re.compile(r"security_report_\d{8}_\d{6}\.html$")
+_REPORT_PDF = re.compile(r"security_report_\d{8}_\d{6}\.pdf$")
 
 MAX_UPLOAD_BYTES = 256 * 1024 * 1024
 
@@ -54,7 +56,13 @@ def analyzer_groups():
 
 @app.get("/")
 def home():
-    return render_template("home.html")
+    static, dynamic = analyzer_groups()
+    return render_template(
+        "home.html",
+        tool_count=len(static) + len(dynamic),
+        static_count=len(static),
+        dynamic_count=len(dynamic),
+    )
 
 
 @app.get("/assess")
@@ -69,6 +77,22 @@ def assess():
         "assess.html",
         apks=apks,
         selected=selected,
+        static_analyzers=static,
+        dynamic_analyzers=dynamic,
+    )
+
+
+@app.get("/assess/analyzers")
+def analyzers():
+    key = request.args.get("apk", "")
+    chosen = next((apk for apk in list_apks() if apk["key"] == key), None)
+    if not chosen:
+        flash("Select an APK from the list.", "error")
+        return redirect(url_for("assess"))
+    static, dynamic = analyzer_groups()
+    return render_template(
+        "analyzers.html",
+        apk=chosen,
         static_analyzers=static,
         dynamic_analyzers=dynamic,
     )
@@ -114,8 +138,8 @@ def start_scan():
     chosen = {name for name in request.form.getlist("analyzers") if name in known}
     ordered = [tool_id for tool_id, _mod, _desc in scan_main.ANALYZERS if tool_id in chosen]
     if not ordered:
-        flash("Select at least one analyzer.")
-        return redirect(url_for("assess"))
+        flash("Select at least one analyzer.", "error")
+        return redirect(url_for("analyzers", apk=request.form.get("apk", "")))
 
     dynamic = [tool_id for tool_id in ordered if tool_id in scan_main.DYNAMIC_ANALYZERS]
     serial = (request.form.get("serial") or "").strip()
@@ -156,11 +180,43 @@ def scan_status(job_id):
     job = get_job(job_id)
     if not job:
         return jsonify({"status": "error", "message": "Scan not found", "error": "Scan not found"}), 404
+    total = job.get("total") or 0
+    completed = job.get("completed") or 0
+    if job["status"] == "done":
+        percent = 100
+    elif total:
+        percent = int(completed * 100 / total)
+    else:
+        percent = 0
     return jsonify({
         "status": job["status"],
         "message": job["message"],
         "error": job["error"],
+        "steps": job.get("steps") or [],
+        "completed": completed,
+        "total": total,
+        "percent": percent,
     })
+
+
+def _report_path(filename):
+    """Return a report path inside output_reports, or abort."""
+    path = os.path.join(REPORT_DIR, filename)
+    if not _inside(path, REPORT_DIR) or not os.path.isfile(path):
+        abort(404)
+    return os.path.realpath(path)
+
+
+def _pdf_bar(pdf_name):
+    return (
+        '<div id="androsec-pdf" style="position:sticky;top:0;z-index:30;display:flex;'
+        'justify-content:space-between;align-items:center;gap:12px;padding:12px 18px;'
+        'background:#070B14;color:#F5F8FF;font-family:ui-sans-serif,Segoe UI,sans-serif;">'
+        '<strong style="letter-spacing:-0.03em">andro<span style="color:#B8FF30">sec</span></strong>'
+        f'<a href="{escape(pdf_name)}" style="display:inline-flex;align-items:center;'
+        'padding:8px 14px;border:1px solid #B8FF30;border-radius:10px;color:#B8FF30;'
+        'font-weight:700;text-decoration:none;background:#0A1020;">Download PDF</a></div>'
+    )
 
 
 def _send_report_file(filename):
@@ -169,10 +225,42 @@ def _send_report_file(filename):
         abort(404)
     if filename != "masvs_explanations.html" and not is_live_report(filename):
         abort(404)
-    path = os.path.join(REPORT_DIR, filename)
-    if not _inside(path, REPORT_DIR) or not os.path.isfile(path):
+    path = _report_path(filename)
+    if filename == "masvs_explanations.html":
+        return send_file(path, mimetype="text/html")
+    with open(path, encoding="utf-8") as handle:
+        html = handle.read()
+    html = html.replace("<body>", "<body>" + _pdf_bar(filename[:-5] + ".pdf"), 1)
+    return Response(html, mimetype="text/html; charset=utf-8")
+
+
+def _send_report_pdf(filename):
+    if not _REPORT_PDF.fullmatch(filename):
         abort(404)
-    return send_file(os.path.realpath(path), mimetype="text/html")
+    html_name = filename[:-4] + ".html"
+    if not is_live_report(html_name):
+        abort(404)
+    html_path = _report_path(html_name)
+    pdf_path = os.path.join(REPORT_DIR, filename)
+    if not _inside(pdf_path, REPORT_DIR):
+        abort(404)
+    fresh = os.path.isfile(pdf_path) and os.path.getmtime(pdf_path) >= os.path.getmtime(html_path)
+    if not fresh:
+        try:
+            from weasyprint import HTML
+            HTML(filename=html_path, base_url=REPORT_DIR).write_pdf(pdf_path)
+        except ImportError:
+            page = "<!DOCTYPE html><title>PDF unavailable</title><p>Install weasyprint to download this report as PDF.</p>"
+            return Response(page, status=503, mimetype="text/html; charset=utf-8")
+        except Exception as exc:
+            page = f"<!DOCTYPE html><title>PDF failed</title><p>Could not build the PDF. {escape(exc)}</p>"
+            return Response(page, status=500, mimetype="text/html; charset=utf-8")
+    return send_file(
+        os.path.realpath(pdf_path),
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=filename,
+    )
 
 
 @app.get("/report/<job_id>")
@@ -187,6 +275,8 @@ def report(job_id):
 
 @app.get("/reports/<filename>")
 def report_file(filename):
+    if filename.endswith(".pdf"):
+        return _send_report_pdf(filename)
     return _send_report_file(filename)
 
 

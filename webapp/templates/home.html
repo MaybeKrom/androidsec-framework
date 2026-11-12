@@ -1,63 +1,83 @@
 {% extends "base.html" %}
-{% block title %}androidsec{% endblock %}
+{% block title %}androsec{% endblock %}
 {% block body %}
   <section class="hero">
     <p class="eyebrow">Android APK assessment</p>
     <h1>Find the weaknesses before someone else does.</h1>
     <p class="lede">
-      androidsec reads an APK, runs the checks you choose, and opens an HTML
-      report mapped to OWASP MASVS. You can also decompile that APK, browse
-      the files, and rebuild it. Dynamic checks wait until you select a device
-      and confirm you are authorized to test it. Static checks cover the manifest, permissions,
-      exported components, secrets, crypto, storage, network settings, and WebView use.
+      A local workspace for authorized Android testing. Pick an APK, run the checks,
+      and read the report on this machine.
     </p>
     <p class="hero-actions">
       <a class="primary" href="{{ url_for('assess') }}">Start an assessment</a>
+      <a class="ghost" href="#about">What is androsec?</a>
     </p>
   </section>
 
-  <ol class="steps">
-    <li>
-      <span class="num">1</span>
-      <div>
-        <strong>Choose an APK</strong>
-        <p>Use a sample that ships with the tool, or upload an app you are allowed to test.</p>
-      </div>
-    </li>
-    <li>
-      <span class="num">2</span>
-      <div>
-        <strong>Pick the analyzers</strong>
-        <p>Static checks are on by default. Dynamic checks stay off until you connect a device and confirm you are allowed to test it.</p>
-      </div>
-    </li>
-    <li>
-      <span class="num">3</span>
-      <div>
-        <strong>Read the report</strong>
-        <p>The scan runs in the background. This page stays responsive, then the report opens here.</p>
-      </div>
-    </li>
-  </ol>
+  <section class="about" id="about">
+    <div>
+      <p class="eyebrow">What is androsec?</p>
+      <h2>One place to inspect an APK and explain what you found.</h2>
+      <p>
+        androsec reads an application you are allowed to test. Static checks work from
+        the file alone. Dynamic checks wait until you connect a device and confirm
+        authorization. The report maps findings to OWASP MASVS, and the files never leave this computer.
+      </p>
+    </div>
+    <dl class="stats">
+      <div><dt>Tools</dt><dd>{{ tool_count }}</dd></div>
+      <div><dt>Static</dt><dd>{{ static_count }}</dd></div>
+      <div><dt>Dynamic</dt><dd>{{ dynamic_count }}</dd></div>
+    </dl>
+  </section>
 
-  <div class="split">
-    <section class="card">
-      <h2>Static analysis</h2>
-      <p>Works from the APK alone. No device, no ADB, no extra setup.</p>
-      <ul class="points">
-        <li>Manifest flags, permissions, and exported components</li>
-        <li>Secrets, weak crypto, storage, and cleartext traffic</li>
-        <li>WebView settings, endpoints, and deep links</li>
-      </ul>
-    </section>
-    <section class="card">
-      <h2>Dynamic analysis</h2>
-      <p>Optional. These checks need a connected device and are left unchecked.</p>
-      <ul class="points">
-        <li>Device properties and install status</li>
-        <li>Launch, crash, and logcat review</li>
-        <li>Frida hooks for preferences and crypto</li>
-      </ul>
-    </section>
-  </div>
+  <section class="block">
+    <p class="eyebrow">Capabilities</p>
+    <h2 class="block-title">What you can run</h2>
+    <div class="feature-grid">
+      <article class="card feature">
+        <p class="feature-kicker">01</p>
+        <h3>Static and dynamic analysis</h3>
+        <p>{{ tool_count }} tools cover the manifest, permissions, components, secrets, crypto, storage, network, WebView, and a connected device.</p>
+      </article>
+      <article class="card feature">
+        <p class="feature-kicker">02</p>
+        <h3>AI-powered finding review</h3>
+        <p>Open one finding from the report, enter your own API key, and keep the write-up on this machine.</p>
+      </article>
+      <article class="card feature">
+        <p class="feature-kicker">03</p>
+        <h3>Decompile and rebuild</h3>
+        <p>Decode resources with apktool and Java with jadx, browse the tree, and rebuild the APK from the decoded project.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="block">
+    <p class="eyebrow">How it works</p>
+    <h2 class="block-title">Choose APK, select analyzers, get the report</h2>
+    <ol class="steps">
+      <li>
+        <span class="num">1</span>
+        <div>
+          <strong>Choose an APK</strong>
+          <p>Use a sample that ships with the tool, or upload an app you are allowed to test.</p>
+        </div>
+      </li>
+      <li>
+        <span class="num">2</span>
+        <div>
+          <strong>Select analyzers</strong>
+          <p>Static checks are on by default. Dynamic checks stay off until you authorize a device.</p>
+        </div>
+      </li>
+      <li>
+        <span class="num">3</span>
+        <div>
+          <strong>Get the report</strong>
+          <p>Watch each analyzer finish, then read the HTML report or download the PDF.</p>
+        </div>
+      </li>
+    </ol>
+  </section>
 {% endblock %}

@@ -22,6 +22,9 @@ def create_job(apk_path, analyzers, serial=None):
         "status": "queued",
         "message": "Queued",
         "error": None,
+        "steps": [{"id": name, "state": "pending"} for name in analyzers],
+        "completed": 0,
+        "total": len(analyzers),
         "html_path": None,
         "json_path": None,
         "summary": None,
@@ -35,7 +38,11 @@ def create_job(apk_path, analyzers, serial=None):
 def get_job(job_id):
     with _lock:
         job = _jobs.get(job_id)
-        return dict(job) if job else None
+        if not job:
+            return None
+        copy = dict(job)
+        copy["steps"] = [dict(step) for step in job.get("steps") or []]
+        return copy
 
 
 def is_live_report(filename):
@@ -54,6 +61,22 @@ def _update(job_id, **fields):
             job.update(fields)
 
 
+def _touch(job_id, tool_id, state, message):
+    """Record that one analyzer started or finished. The scan thread calls this."""
+    with _lock:
+        job = _jobs.get(job_id)
+        if not job:
+            return
+        job["status"] = "running"
+        job["message"] = message
+        if not state:
+            return
+        for step in job["steps"]:
+            if step["id"] == tool_id:
+                step["state"] = state
+        job["completed"] = sum(1 for step in job["steps"] if step["state"] == "done")
+
+
 def _run(job_id):
     from main import run_scan
 
@@ -61,8 +84,13 @@ def _run(job_id):
     if not job:
         return
 
-    def on_progress(_tool_id, message):
-        _update(job_id, status="running", message=message)
+    def on_progress(tool_id, message):
+        state = None
+        if tool_id and message.startswith("Running "):
+            state = "running"
+        elif tool_id and message.startswith("Done "):
+            state = "done"
+        _touch(job_id, tool_id, state, message)
 
     serial = job.get("serial")
     held = False

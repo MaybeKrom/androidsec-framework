@@ -21,7 +21,7 @@ SEVERITY_ORDER = {"Critical": 0, "High": 1, "Medium": 2, "Low": 3, "Info": 4}
 
 
 def sorted_findings(findings):
-    """Same order as the HTML table, so a review link index stays stable."""
+    """Same order as the HTML table, so an exploit link index stays stable."""
     return sorted(
         findings,
         key=lambda item: (
@@ -85,7 +85,8 @@ table{{width:100%;border-collapse:collapse;margin-top:10px}}
 th,td{{padding:10px;border:1px solid #ddd;text-align:left;vertical-align:top;font-size:14px}}
 th{{background:#2c3e50;color:#fff}}
 .badge{{display:inline-block;padding:3px 10px;border-radius:12px;color:#fff;font-weight:700;font-size:12px}}
-a.review{{display:inline-block;padding:4px 8px;border-radius:6px;background:#0f6e6b;color:#fff;text-decoration:none;font-weight:700;font-size:12px}}
+a.exploit{{display:inline-block;padding:4px 10px;border-radius:6px;background:#7a1f1f;color:#fff;text-decoration:none;font-weight:700;font-size:12px}}
+a.exploit:hover{{background:#9f2d3a}}
 .meta td{{border:0;padding:4px}}
 .summary{{display:flex;gap:16px;flex-wrap:wrap}}
 .summary div{{flex:1;min-width:120px;padding:14px;border-radius:6px;background:#ecf0f1;text-align:center}}
@@ -138,13 +139,13 @@ a.review{{display:inline-block;padding:4px 8px;border-radius:6px;background:#0f6
         else:
             parts.append('<table><tr><th>Severity</th><th>Confidence</th><th>Rule</th>'
                          '<th>Title</th><th>Evidence</th><th>Recommendation</th>'
-                         '<th>MASVS</th><th>Review</th></tr>')
+                         '<th>MASVS</th><th>Exploit</th></tr>')
             report_name = os.path.basename(path)
             for index, f in enumerate(sorted_findings(self.findings)):
                 sc = SEV_COLOR.get(f["severity"], "#333")
                 cc = CONF_COLOR.get(f.get("confidence", "High"), "#95a5a6")
                 query = urlencode({"report": report_name, "i": str(index)})
-                href = esc(f"/review?{query}")
+                href = esc(f"/exploit?{query}")
                 parts.append(
                     f'<tr>'
                     f'<td><span class="badge" style="background:{sc}">{esc(f["severity"])}</span></td>'
@@ -154,7 +155,7 @@ a.review{{display:inline-block;padding:4px 8px;border-radius:6px;background:#0f6
                     f'<td><code>{esc(f.get("evidence",""))}</code></td>'
                     f'<td>{esc(f.get("recommendation",""))}</td>'
                     f'<td>{masvs_cell(f.get("masvs", "N/A"))}</td>'
-                    f'<td><a class="review" href="{href}">Review</a></td>'
+                    f'<td><a class="exploit" href="{href}">Exploit</a></td>'
                     f'</tr>'
                 )
             parts.append('</table>')

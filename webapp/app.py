@@ -21,7 +21,7 @@ from webapp.decompile import DECODED_DIR, bp as decompile_bp  # noqa: E402
 from webapp.device import bp as device_bp  # noqa: E402
 from webapp.device import ready_serial, valid_serial  # noqa: E402
 from webapp.jobs import create_job, get_job, is_live_report  # noqa: E402
-from webapp.review import bp as review_bp  # noqa: E402
+from webapp.exploit import bp as exploit_bp  # noqa: E402
 
 _REPORT_NAME = re.compile(r"security_report_\d{8}_\d{6}\.html$")
 
@@ -32,7 +32,7 @@ app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_BYTES
 app.secret_key = os.environ.get("ANDROIDSEC_SECRET", "androidsec-local")
 app.register_blueprint(decompile_bp)
 app.register_blueprint(device_bp)
-app.register_blueprint(review_bp)
+app.register_blueprint(exploit_bp)
 
 
 def _inside(path, directory):
@@ -182,7 +182,6 @@ def report(job_id):
         abort(404)
     if job["status"] != "done" or not job.get("html_path"):
         return redirect(url_for("scanning", job_id=job_id))
-    # Redirect to the real filename so relative links to masvs_explanations.html resolve.
     return redirect(url_for("report_file", filename=os.path.basename(job["html_path"])))
 
 

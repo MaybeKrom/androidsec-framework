@@ -1,112 +1,185 @@
-# androsec — Android VAPT Assessment Framework
+<p align="center">
+  <img src="design/androsec-logo.png" alt="androsec logo" width="720"/>
+</p>
 
-**androsec** is an Android application security assessment framework built for lab VAPT and graduation / MSS-style reporting. It combines **static analyzers**, **dynamic ADB/Frida/UIAutomator checks**, an **AI-assisted exploitation PoC pipeline**, and professional **HTML / JSON / PDF** deliverables mapped to **OWASP MASVS**.
+<h1 align="center">androsec</h1>
 
-> Authorized testing only. Use on apps and devices you own or have explicit permission to assess (DIVA, AndroGoat, InsecureBankv2, UnCrackable, Damn Vulnerable Bank, etc.).
+<p align="center">
+  <strong>Android VAPT Assessment Framework</strong><br/>
+  Graduation Project — College of Computer and Information Sciences<br/>
+  <em>King Saud University (KSU)</em>
+</p>
 
-## What’s inside
+<p align="center">
+  <a href="https://github.com/MaybeKrom/androidsec-framework"><img alt="GitHub" src="https://img.shields.io/badge/GitHub-MaybeKrom%2Fandroidsec--framework-181717?logo=github"/></a>
+  <img alt="Python" src="https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white"/>
+  <img alt="Platform" src="https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white"/>
+  <img alt="MASVS" src="https://img.shields.io/badge/OWASP-MASVS-000000"/>
+  <img alt="License" src="https://img.shields.io/badge/Use-Authorized%20lab%20testing%20only-B8FF30"/>
+</p>
 
-| Layer | Capability |
-|-------|------------|
-| Static | Manifest, components, secrets, crypto/SQL/WebView, network/NSC, SBOM, intent abuse, native `.so`, lab challenge mapper, attack-chain correlator |
-| Dynamic | ADB device readiness, runtime crash watch, run-as prefs/DB extraction, UIAutomator challenge menus, Frida hooks, logcat secrets |
-| AI Exploit | Grounded PoC planning → ADB/Frida execution → evidence gate → MSS PDF write-up with CVSS estimate + TOC |
-| Reports | HTML + JSON + WeasyPrint PDF; single-finding exploitation PDFs |
+<p align="center">
+  Automated static &amp; dynamic Android security assessment · AI-assisted exploitation PoCs · MSS-style PDF reports
+</p>
+
+---
+
+## Overview
+
+**androsec** is a King Saud University graduation project that turns Android APK assessment into a practical VAPT workflow: scan → prioritize findings → dynamically verify → generate professional evidence-backed reports.
+
+It is designed for **authorized lab environments** and intentionally vulnerable training apps (DIVA, AndroGoat, InsecureBankv2, UnCrackable, Damn Vulnerable Bank), with a path toward MSS-style engagement deliverables.
+
+| Pillar | What you get |
+|--------|----------------|
+| **Static analysis** | Manifest, components, secrets, crypto/SQL/WebView, network/NSC, SBOM, intent abuse, native libs, lab challenge mapping, attack-chain correlation |
+| **Dynamic analysis** | ADB readiness, runtime crashes, run-as storage extraction, UIAutomator menus, Frida hooks, logcat secret detection |
+| **AI exploitation** | Grounded PoC planning → ADB/Frida execution → Python evidence gate → single-finding exploitation PDF |
+| **Reporting** | HTML · JSON · WeasyPrint PDF (cover, TOC, CVSS estimate, section page-breaks) |
+
+---
+
+## Academic context
+
+| Field | Detail |
+|-------|--------|
+| **Institution** | King Saud University (KSU), Riyadh |
+| **College** | College of Computer and Information Sciences |
+| **Type** | Senior / graduation project |
+| **Author** | [Abdulkarim Alshehri](https://github.com/MaybeKrom) (`MaybeKrom`) |
+| **Focus** | Android application security assessment & automated PoC evidence |
+
+---
+
+## Screenshots & deliverables
+
+Security assessment PDFs and AI exploitation reports are produced locally under `output_reports/` and `exploitations/`. The web UI provides one-click PDF download for both full-app assessments and single-finding exploitation write-ups.
+
+---
 
 ## Feature highlights
 
 ### Core static analyzers
-- **apk_info** — package/version/SDK, certs, native ABIs  
-- **manifest** — debuggable, backup, cleartext, legacy storage, taskAffinity, sharedUserId  
-- **permission** — dangerous permission inventory (informational by default)  
-- **component** — exported activities/services/receivers/providers + authorities  
-- **attack_surface** / **deeplink_fuzzer** — browsable links + generated `am start -d` PoCs  
-- **secret_detector** — AWS/Google/Firebase/JWT/keys in DEX, configs, and `.so`  
-- **static_code** — weak crypto, insecure random, TrustAll / HostnameVerifier, resilience controls  
-- **storage** / **network** / **webview** — storage modes, cleartext/HTTP, JS bridge  
+- APK metadata, certificates, native ABIs  
+- Manifest security flags (`debuggable`, backup, cleartext, affinity, `sharedUserId`)  
+- Exported components & provider authorities  
+- Secret detection across DEX, assets/configs, and `.so` libraries  
+- Weak crypto / TrustAll / HostnameVerifier / resilience controls  
 
-### MSS-oriented tools (`extra/`)
-- **sql_injection** — rawQuery/execSQL / provider URI candidates  
-- **crypto_key** — hardcoded keys/IVs and weak transforms  
-- **ssl_pinning** — OkHttp/NSC pins vs TrustAll conflicts  
-- **intent_abuse** — unprotected exported surfaces + PoC commands  
-- **native_security** — anti-analysis / sensitive strings in native libs  
-- **sbom** — third-party library fingerprints  
-- **lab_mapper** — DIVA / AndroGoat / IBV2 / UnCrackable / DVB challenge inventory  
-- **finding_correlator** — multi-signal attack chains (e.g. exported WebView + JS bridge)  
-- **api_extractor** / **cloud_checker** — endpoint recon + Firebase open-read probe  
+### MSS-oriented extensions (`extra/`)
+- SQL injection & ContentProvider URI candidates  
+- Hardcoded crypto keys / weak transforms  
+- SSL pinning vs TrustAll conflict analysis  
+- Intent/provider abuse candidates with PoC commands  
+- Native anti-analysis strings · SBOM fingerprints  
+- Lab challenge mapper (DIVA / AndroGoat / IBV2 / UnCrackable / DVB)  
+- Multi-signal finding correlator  
 
-### Dynamic tools (need ADB device/emulator)
-- **adb_inspector** — device props, ABI, root/Frida readiness  
-- **runtime** — launch + FATAL EXCEPTION watch  
-- **backup_extractor** — `run-as` SharedPreferences / databases when debuggable  
-- **uiautomator** — UI hierarchy / challenge-menu capture  
-- **frida** — SharedPreferences + Cipher hooks  
-- **log** — password/token/email/CC (Luhn-validated) with tombstone noise filtered  
+### Dynamic (ADB device / emulator)
+- Device & Frida/root readiness  
+- Runtime crash monitoring  
+- `run-as` SharedPreferences / database extraction  
+- UIAutomator challenge-menu capture  
+- Frida SharedPreferences + Cipher hooks  
+- Logcat secrets (Luhn-checked PANs; tombstone noise filtered)  
 
 ### AI exploitation (web UI)
-- Provider support: Anthropic (default `claude-sonnet-5`), OpenAI, Gemini, OpenRouter, DeepSeek, xAI, custom  
-- Evidence-gated confirmation (`CONFIRMED` / `PARTIAL` / `UNCONFIRMED`)  
-- PDF: cover CVSS estimate, table of contents, section page-breaks, captured evidence  
+- Default provider: **Anthropic Claude** (`claude-sonnet-5`)  
+- Also: OpenAI, Gemini, OpenRouter, DeepSeek, xAI, custom OpenAI-compatible  
+- Evidence-gated confirmation: `CONFIRMED` · `PARTIAL` · `UNCONFIRMED`  
 
-## Installation
+---
 
-```bash
-pip install -r requirements.txt
+## Architecture
 
-# PDF reports
-pip install weasyprint
-# Debian/Kali also need: sudo apt install libpango-1.0-0 libpangoft2-1.0-0
-
-# Dynamic analysis
-# - adb on PATH, device/emulator authorized
-# - frida-tools + frida-server on device (for frida analyzer / AI Frida steps)
+```text
+┌──────────────────┐     ┌─────────────────────┐     ┌──────────────────┐
+│  APK + optional  │────▶│  Analyzer suite     │────▶│  HTML/JSON/PDF   │
+│  ADB device      │     │  (static+dynamic)   │     │  security report │
+└──────────────────┘     └──────────┬──────────┘     └────────┬─────────┘
+                                    │                         │
+                                    │ findings                │ Exploit
+                                    ▼                         ▼
+                         ┌─────────────────────┐     ┌──────────────────┐
+                         │  Web UI (Flask)     │────▶│  AI PoC pipeline │
+                         │  analyzer picker    │     │  + evidence gate │
+                         └─────────────────────┘     └────────┬─────────┘
+                                                              ▼
+                                                     Exploitation PDF
 ```
 
-## CLI usage
+```text
+analyzers/    core static & dynamic scanners
+extra/        MSS extensions (SQL, crypto, SSL, intent, SBOM, lab, …)
+rules/        severity catalog, OWASP MASVS map, dedupe
+reporter/     HTML + PDF security reports
+webapp/       Flask UI + AI exploit module
+scripts/      Frida helpers
+tests/        unit tests
+design/       brand assets (logo)
+```
+
+---
+
+## Quick start
+
+### Requirements
+- Python **3.10+**
+- `adb` on `PATH` (for dynamic analysis)
+- Optional: Frida (`frida-tools` + `frida-server` on device)
+- Optional: WeasyPrint (+ Pango libs on Debian/Kali) for PDFs
+
+### Install
 
 ```bash
-# Full scan (static + dynamic)
+git clone https://github.com/MaybeKrom/androidsec-framework.git
+cd androidsec-framework
+pip install -r requirements.txt
+pip install weasyprint   # PDF export
+```
+
+### CLI scan
+
+```bash
+# Full scan
 python main.py target.apk
 
 # Static only
 python main.py target.apk --static-only
 
-# Custom output directory
-python main.py target.apk -o ./my_reports
-
-# Select / skip analyzers
-python main.py target.apk --only manifest component secret_detector sql_injection lab_mapper
-python main.py target.apk --skip frida uiautomator
+# Select analyzers
+python main.py target.apk --only manifest component secret_detector sql_injection lab_mapper finding_correlator
 
 # List analyzers
 python main.py --list-analyzers
-
-# Tests
-python -m unittest discover -s tests -p "test_*.py"
 ```
 
-## Web UI
+### Web UI
 
 ```bash
 cd webapp
 python app.py
-# open http://127.0.0.1:5000
+# → http://127.0.0.1:5000
 ```
 
-Flow: upload/select APK → choose analyzers → (optional) attach device → HTML/PDF security report → **Exploit** on a finding → AI PoC + exploitation PDF download.
+1. Select / upload an APK  
+2. Choose analyzers (static + dynamic)  
+3. Download the security PDF  
+4. Open a finding → **Exploit** → AI PoC + exploitation PDF  
 
-## Analyzer IDs
+---
+
+## Analyzer catalog
 
 | ID | Type | Description |
 |----|------|-------------|
-| `apk_info` | Static | Metadata + certificates + ABIs |
+| `apk_info` | Static | Metadata, certificates, ABIs |
 | `manifest` | Static | Security-relevant manifest flags |
 | `permission` | Static | Dangerous permission inventory |
-| `component` | Static | Exported components + provider authorities |
-| `attack_surface` | Static | Deep link / intent-filter surface |
-| `secret_detector` | Static | Embedded secrets (DEX/assets/.so) |
-| `static_code` | Static | Crypto / TLS code patterns + resilience |
+| `component` | Static | Exported components + authorities |
+| `attack_surface` | Static | Deep-link / intent-filter surface |
+| `secret_detector` | Static | Embedded secrets (DEX / assets / `.so`) |
+| `static_code` | Static | Crypto / TLS patterns + resilience |
 | `storage` | Static | Insecure storage patterns |
 | `network` | Static | Cleartext / HTTP / NSC signals |
 | `webview` | Static | JS bridge / file access |
@@ -123,35 +196,50 @@ Flow: upload/select APK → choose analyzers → (optional) attach device → HT
 | `finding_correlator` | Static | Correlated attack chains |
 | `adb_inspector` | Dynamic | Device / env readiness |
 | `runtime` | Dynamic | Launch + crash monitoring |
-| `backup_extractor` | Dynamic | run-as prefs/DB extraction |
+| `backup_extractor` | Dynamic | `run-as` prefs/DB extraction |
 | `uiautomator` | Dynamic | UI / challenge menu dump |
 | `frida` | Dynamic | Runtime hooks |
 | `log` | Dynamic | Sensitive logcat findings |
 
+---
+
 ## Reporting notes
 
-- Duplicate noisy rules are **collapsed** (e.g. many HostnameVerifier hits → one row).  
-- `MANIFEST_CLEARTEXT` and `NETWORK_CLEARTEXT_ALLOWED` are treated as equivalents (one kept).  
-- Lab challenge rows (`LAB_CHALLENGE`) are **coverage inventory**, not automatic Confirmed vulns — confirm with exploit / dynamic tools.  
-- Exploitation PDFs are **single-finding** reports (not the full-app scorecard).
+- Noisy duplicate rules are **collapsed** for readability.  
+- Cleartext duplicates from manifest + network tools are **deduplicated**.  
+- `LAB_CHALLENGE` rows are **coverage inventory**, not automatic Confirmed vulns.  
+- Exploitation PDFs are **single-finding** reports (not the full-app scorecard).  
+- CVSS values on exploitation covers are **estimates** aligned to severity/class.
 
-## Project layout
+---
 
-```
-analyzers/          # core static + dynamic analyzers
-extra/              # MSS extensions (sql, crypto, ssl, intent, sbom, lab, …)
-rules/              # rules.json, OWASP map, consolidate
-reporter/           # HTML + PDF security reports
-webapp/             # Flask UI + AI exploit pipeline
-scripts/            # Frida JS helpers
-tests/              # unit tests
-```
+## Lab environment tips
 
-## Environment tips
-
-- **Android-x86 in VirtualBox** is fine for ADB install/launch/logcat/content; **Frida is often flaky** there — prefer Genymotion, official emulator, or a rooted phone for Frida-heavy work.  
+- Works well with VirtualBox **Kali + Android-x86** for ADB install/launch/logcat/content.  
+- **Frida** is often flaky on android-x86 — prefer Genymotion, the official emulator, or a rooted phone for Frida-heavy PoCs.  
 - Set `ANDROID_SERIAL` when multiple devices are connected.
 
-## License / ethics
+---
 
-For educational and authorized security testing. You are responsible for lawful use, API token spend, and lab isolation.
+## Tests
+
+```bash
+python -m unittest discover -s tests -p "test_*.py"
+```
+
+---
+
+## Disclaimer
+
+This framework is intended for **authorized security testing and academic evaluation** only. The authors are not responsible for misuse, unauthorized testing, or third-party API costs incurred by the AI exploitation module.
+
+---
+
+## Author
+
+**Abdulkarim Alshehri** · King Saud University  
+GitHub: [@MaybeKrom](https://github.com/MaybeKrom)
+
+<p align="center">
+  <sub>androsec · KSU Graduation Project</sub>
+</p>

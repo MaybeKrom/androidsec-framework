@@ -81,6 +81,24 @@ def run(ctx):
 
     L.insert(1, f"DEX strings scanned: {dex_strings}")
 
+    # ---- 1b. Scan assets / res / google-services style configs ----
+    try:
+        from analyzers.dex_scan import zip_text_files
+        for name, text in zip_text_files(ctx):
+            if not any(x in name.lower() for x in (
+                "asset", "res/raw", "google-services", "firebase", "aws", "secret", "config"
+            )) and "AKIA" not in text and "AIza" not in text:
+                continue
+            for rule, pat in PATTERNS.items():
+                if rule in ("SECRET_IP_ADDRESS",):
+                    continue
+                match = pat.search(text)
+                if match:
+                    L.append(f"  [cfg] {rule} in {name}")
+                    _emit(rule, f"{name}: {_mask(match.group(0))}")
+    except Exception as exc:
+        L.append(f"  [!] asset/config scan failed: {exc}")
+
     # ---- 2. Scan native .so files for embedded secrets ----
     so_count = 0
     try:

@@ -42,13 +42,27 @@ def run(ctx):
         return {"tool": "adb_inspector", "output": "\n".join(L), "findings": [], "skipped": True}
     L.append(f"Device: {s}")
     props = {"ro.build.version.release": "Android", "ro.build.version.sdk": "SDK",
-             "ro.product.manufacturer": "Manufacturer", "ro.product.model": "Model"}
+             "ro.product.manufacturer": "Manufacturer", "ro.product.model": "Model",
+             "ro.product.cpu.abi": "ABI"}
     for p, label in props.items():
         try:
             r = _adb("-s", s, "shell", "getprop", p)
             L.append(f"  {label}: {r.stdout.strip()}")
         except Exception:
             pass
+
+    # Lab environment readiness signals (informational).
+    try:
+        su = _adb("-s", s, "shell", "which", "su")
+        if (su.stdout or "").strip():
+            F.append({"rule_id": "ENV_ROOTED_DEVICE", "evidence": su.stdout.strip()})
+            L.append("  [i] su binary present")
+        frida = _adb("-s", s, "shell", "ps", "-A")
+        if "frida" in (frida.stdout or "").lower():
+            F.append({"rule_id": "ENV_FRIDA_SERVER", "evidence": "frida process visible in ps"})
+            L.append("  [i] frida-related process visible")
+    except Exception:
+        pass
 
     pkg = ctx.apk.get_package()
     try:

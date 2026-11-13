@@ -19,8 +19,27 @@ _COLLAPSE_BY_RULE = {
     "PERMISSION_STORAGE",
     "PERMISSION_CAMERA",
     "PERMISSION_LOCATION",
+    "PERMISSION_SMS",
+    "PERMISSION_CONTACTS",
+    "PERMISSION_MIC",
+    "PERMISSION_PHONE",
+    "PERMISSION_SYSTEM",
+    "PERMISSION_SENSORS",
+    "PERMISSION_CALENDAR",
     "NETWORK_HTTP_URL",
+    "SBOM_LIBRARY_PRESENT",
+    "SBOM_VERSION_HINT",
+    "NATIVE_SENSITIVE_STRING",
+    "NATIVE_ANTI_ANALYSIS",
+    "DEEPLINK_BROWSABLE",
+    "SSL_CUSTOM_TRUSTMANAGER",
+    "WEBVIEW_JS_ENABLED",
 }
+
+# Equivalent findings from overlapping tools — keep the preferred rule id.
+_EQUIVALENT_GROUPS = (
+    ("MANIFEST_CLEARTEXT", "NETWORK_CLEARTEXT_ALLOWED"),
+)
 
 
 def consolidate_findings(findings: list) -> list:
@@ -49,6 +68,16 @@ def consolidate_findings(findings: list) -> list:
         item = dict(finding)
         item["_collapse_count"] = 1
         out.append(item)
+
+    # Drop secondary cleartext duplicate if both exist.
+    present = {f.get("rule_id") for f in out}
+    drop = set()
+    for preferred, secondary in _EQUIVALENT_GROUPS:
+        if preferred in present and secondary in present:
+            drop.add(secondary)
+    if drop:
+        out = [f for f in out if f.get("rule_id") not in drop]
+
     for item in out:
         item.pop("_collapse_count", None)
     return out

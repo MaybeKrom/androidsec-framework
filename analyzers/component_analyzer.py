@@ -46,15 +46,27 @@ def run(ctx):
 
         rule = "COMPONENT_LAUNCHER" if is_launcher else TYPE_MAP[child.tag]
         perm = child.get(f"{NS}permission", "none")
+        authority = ""
+        if child.tag == "provider":
+            authority = child.get(f"{NS}authorities") or child.get(f"{NS}authority") or ""
 
         marker = "i" if is_launcher else "!"
+        extra = f", authority={authority}" if authority else ""
         L.append(f"  [{marker}] {child.tag}: {name} "
-                 f"(exported={exported}, permission={perm})")
+                 f"(exported={exported}, permission={perm}{extra})")
 
         key = (rule, name)
         if key not in emitted:
             emitted.add(key)
-            F.append({"rule_id": rule, "evidence": f"{name} (permission={perm})"})
+            evidence = f"{name} (permission={perm})"
+            if authority:
+                evidence += f" authorities={authority}"
+            F.append({"rule_id": rule, "evidence": evidence})
+            if authority and not is_launcher:
+                F.append({
+                    "rule_id": "COMPONENT_PROVIDER_AUTHORITY",
+                    "evidence": f"content://{authority.split(';')[0].strip()}",
+                })
 
     if not F:
         L.append("  [-] No exported components found.")

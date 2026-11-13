@@ -37,6 +37,17 @@ def run(ctx):
     L.append(f"Target SDK:    {safe_target_sdk}")
     L.append(f"Main activity: {apk.get_main_activity()}")
     L.append(f"Signed:        {apk.is_signed()}")
+    try:
+        abis = []
+        for name in ctx.zip.namelist():
+            if name.startswith("lib/") and name.endswith(".so"):
+                parts = name.split("/")
+                if len(parts) >= 3:
+                    abis.append(parts[1])
+        abis = sorted(set(abis))
+        L.append(f"Native ABIs:   {', '.join(abis) if abis else 'none'}")
+    except Exception:
+        L.append("Native ABIs:   ?")
 
     try:
         certs = apk.get_certificates()

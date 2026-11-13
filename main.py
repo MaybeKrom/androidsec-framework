@@ -11,6 +11,7 @@ from analyzers.utils import sha256_file, fmt_size
 from context import AppContext
 from engine.risk_engine import RiskEngine
 from reporter.report_generator import ReportGenerator
+from rules.consolidate import consolidate_findings
 from rules.owasp_mapper import OWASPMapper
 from rules.rules_engine import RulesEngine
 
@@ -114,6 +115,7 @@ def run_scan(apk_path, output_dir=None, only=None, skip=None,
     _notify(on_progress, "", "Writing the report…")
     findings = RulesEngine(os.path.join(BASE, "rules", "rules.json")).enrich(raw)
     findings = OWASPMapper(os.path.join(BASE, "rules", "owasp_mapping.json")).apply(findings)
+    findings = consolidate_findings(findings)
     summary = RiskEngine().compute(findings)
 
     apk_obj = ctx.apk

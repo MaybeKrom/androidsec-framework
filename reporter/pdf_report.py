@@ -149,6 +149,8 @@ h2 {{
   break-after: avoid;
 }}
 h2.break {{ break-before: page; }}
+main > section {{ break-before: page; }}
+main > section:first-child {{ break-before: auto; }}
 h3 {{ margin: 0; font-size: 12pt; break-after: avoid; }}
 h4 {{
   margin: 8px 0 2px;
@@ -454,7 +456,7 @@ def _findings_table(findings):
             "</tr>"
         )
     return (
-        '<section><h2 class="break">Findings</h2>'
+        '<section><h2>Findings</h2>'
         '<p class="lead">Evidence and the recommendation for each row are in the next section.</p>'
         f'<table class="findings">{"".join(rows)}</tbody></table></section>'
     )
@@ -510,7 +512,7 @@ def _tool_block(tool):
 
 def _tools_section(executed, skipped):
     parts = [
-        '<section><h2 class="break">Tool outputs</h2>',
+        '<section><h2>Tool outputs</h2>',
         '<p class="lead">Each analyzer that ran, followed by tools that were skipped.</p>',
     ]
     if executed:

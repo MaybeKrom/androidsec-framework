@@ -34,14 +34,15 @@ def run(ctx):
     seen = set()
     scanned = 0
 
-    # Dedupe by (rule, evidence) so a class name matching twice is one finding.
-    emitted = set()
+    # One finding per rule for these pattern scanners — AndroGoat/DIVA otherwise
+    # emit 10+ HostnameVerifier / Frida-check rows that are the same issue.
+    emitted = {}
 
     def _emit(rule, evidence):
-        key = (rule, evidence[:50])
-        if key in emitted:
+        if rule in emitted:
+            emitted[rule]["count"] += 1
             return
-        emitted.add(key)
+        emitted[rule] = {"count": 1, "evidence": evidence}
         F.append({"rule_id": rule, "evidence": evidence})
 
     for d in ctx.dex:
@@ -69,6 +70,13 @@ def run(ctx):
                     _emit(rule, s[:100])
 
     L.insert(1, f"Strings scanned: {scanned}")
+
+    # Annotate collapsed match counts on evidence for the report.
+    for f in F:
+        meta = emitted.get(f["rule_id"]) or {}
+        n = int(meta.get("count") or 1)
+        if n > 1:
+            f["evidence"] = f"{f['evidence']}  (+{n - 1} similar matches collapsed)"
 
     # Summary of detected controls
     controls = [f for f in F if f["rule_id"].startswith("RESILIENCE_")]

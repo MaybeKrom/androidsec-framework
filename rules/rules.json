@@ -162,10 +162,10 @@
   },
   "SECRET_AWS_KEY": {
     "severity": "Critical",
-    "confidence": "High",
-    "title": "AWS access key",
-    "description": "AWS access key embedded in APK.",
-    "recommendation": "Rotate key immediately; use short-lived tokens from backend."
+    "confidence": "Medium",
+    "title": "AWS access key (format match)",
+    "description": "AWS access-key-id pattern (AKIA…) embedded in APK. Format-only detection — not validated against AWS and may be a lab placeholder.",
+    "recommendation": "Rotate if real; never ship cloud credentials. Treat lab placeholders as training signals."
   },
   "SECRET_GOOGLE_API": {
     "severity": "High",
@@ -290,15 +290,15 @@
     "severity": "High",
     "confidence": "High",
     "title": "Insecure TrustManager",
-    "description": "Custom TrustManager may accept all certs.",
+    "description": "TrustAll-style TrustManager markers (not bare checkServerTrusted API refs).",
     "recommendation": "Use the platform default TrustManager."
   },
   "CODE_HOSTNAME_VERIFIER": {
     "severity": "High",
     "confidence": "High",
-    "title": "Custom HostnameVerifier",
-    "description": "Hostname verification may be disabled.",
-    "recommendation": "Do not override HostnameVerifier."
+    "title": "Allow-all HostnameVerifier",
+    "description": "Hostname verification appears disabled (ALLOW_ALL / always-true verifier). Bare HostnameVerifier type refs from libraries are not flagged.",
+    "recommendation": "Do not override HostnameVerifier with an allow-all implementation."
   },
   "RESILIENCE_ROOT_CHECK_PRESENT": {
     "severity": "Info",
@@ -693,45 +693,45 @@
     "recommendation": "Verify with dedicated analyzer/exploit."
   },
   "CORRELATED_WEBVIEW_EXPORT": {
-    "severity": "Critical",
-    "confidence": "High",
+    "severity": "Info",
+    "confidence": "Medium",
     "title": "Correlated WebView export chain",
-    "description": "Exported activity + JS bridge.",
-    "recommendation": "Restrict export; remove bridge."
+    "description": "Informational attack-chain note: exported activity + JS bridge already covered by component/webview rules.",
+    "recommendation": "Restrict export; remove bridge. Does not add score weight beyond base findings."
   },
   "CORRELATED_PROVIDER_SQL": {
-    "severity": "High",
-    "confidence": "High",
+    "severity": "Info",
+    "confidence": "Medium",
     "title": "Correlated provider + SQL",
-    "description": "Exported provider with SQLite APIs.",
+    "description": "Informational attack-chain note: exported provider with SQLite APIs (base COMPONENT/SQL findings already scored).",
     "recommendation": "Parameterize queries; restrict provider."
   },
   "CORRELATED_DEBUG_STORAGE": {
-    "severity": "High",
-    "confidence": "High",
+    "severity": "Info",
+    "confidence": "Medium",
     "title": "Correlated debuggable storage",
-    "description": "Debuggable + prefs/password signals.",
+    "description": "Informational attack-chain note: debuggable + prefs/password signals.",
     "recommendation": "Disable debug; encrypt prefs."
   },
   "CORRELATED_CLEARTEXT_SECRET": {
-    "severity": "Critical",
-    "confidence": "High",
+    "severity": "Info",
+    "confidence": "Medium",
     "title": "Correlated cleartext + secret",
-    "description": "Cleartext allowed with embedded cloud key.",
+    "description": "Informational attack-chain note: cleartext allowed with embedded cloud key pattern.",
     "recommendation": "Disable cleartext; rotate key."
   },
   "CORRELATED_BACKUP_PREFS": {
-    "severity": "High",
-    "confidence": "High",
+    "severity": "Info",
+    "confidence": "Medium",
     "title": "Correlated backup + prefs",
-    "description": "Backup allowed with SharedPreferences.",
+    "description": "Informational attack-chain note: backup allowed with SharedPreferences.",
     "recommendation": "Disable backup or encrypt data."
   },
   "CORRELATED_WORLD_STORAGE": {
-    "severity": "High",
-    "confidence": "High",
+    "severity": "Info",
+    "confidence": "Medium",
     "title": "Correlated world storage",
-    "description": "MODE_WORLD_* usage.",
+    "description": "Informational attack-chain note: MODE_WORLD_* usage.",
     "recommendation": "Use MODE_PRIVATE."
   },
   "BACKUP_PREFS_LISTED": {

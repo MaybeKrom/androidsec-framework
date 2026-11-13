@@ -1,0 +1,63 @@
+{
+  "_comment": "Seed expected-findings benchmark for lab APKs. must_have = high-signal rules that should appear; must_not = known false-positive classes after precision filters; notes = coverage caveats.",
+  "apps": {
+    "DIVA": {
+      "package": "jakhar.aseem.diva",
+      "must_have": [
+        "LAB_APP_DETECTED",
+        "LAB_CHALLENGE",
+        "COMPONENT_PROVIDER",
+        "MANIFEST_DEBUGGABLE"
+      ],
+      "must_not": [
+        "CODE_HOSTNAME_VERIFIER"
+      ],
+      "notes": "Exported notesprovider is the primary AI-exploit target. Prefer COMPONENT_PROVIDER over HostnameVerifier library noise."
+    },
+    "InsecureBankv2": {
+      "package": "com.android.insecurebankv2",
+      "must_have": [
+        "LAB_APP_DETECTED",
+        "LAB_CHALLENGE",
+        "COMPONENT_PROVIDER",
+        "MANIFEST_DEBUGGABLE"
+      ],
+      "should_have": [
+        "WEBVIEW_JS_BRIDGE",
+        "WEBVIEW_JS_ENABLED"
+      ],
+      "must_not": [],
+      "notes": "TrackUserContentProvider path is /trackerusers. ViewStatement WebView needs ANDROSEC-WEBVIEW-PROOF for CONFIRMED."
+    },
+    "AndroGoat": {
+      "package": "owasp.sat.agoat",
+      "must_have": [
+        "LAB_APP_DETECTED",
+        "LAB_CHALLENGE"
+      ],
+      "must_not": [
+        "CODE_HOSTNAME_VERIFIER",
+        "CODE_TRUST_ALL_CERTS",
+        "SSL_PINNING_BYPASS_CONFLICT",
+        "RESILIENCE_XPOSED_CHECK_PRESENT"
+      ],
+      "notes": "OkHttp/Conscrypt HostnameVerifier type refs and bare checkServerTrusted must not fire. Xposed must not match ExposedDropdownMenu. WebView challenges may still FN if strings differ from addJavascriptInterface."
+    },
+    "UnCrackable": {
+      "package_prefixes": [
+        "owasp.mstg.uncrackable",
+        "sg.vantagepoint.uncrackable"
+      ],
+      "must_have": [
+        "LAB_APP_DETECTED",
+        "RESILIENCE_ROOT_CHECK_PRESENT"
+      ],
+      "should_have": [
+        "SECRET_OBFUSCATED_BLOB",
+        "NATIVE_ANTI_ANALYSIS"
+      ],
+      "must_not": [],
+      "notes": "Root/Frida checks are Info resilience controls. Secret is often native/XOR — prefer Frida root_bypass category for exploit."
+    }
+  }
+}

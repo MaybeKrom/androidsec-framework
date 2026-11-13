@@ -519,11 +519,32 @@ def _tools_section(executed, skipped):
     else:
         parts.append("<p>No analyzer output was recorded.</p>")
     if skipped:
+        skipped_names = {str(t.get("tool") or "") for t in skipped}
+        coverage_bits = []
+        if "frida" in skipped_names:
+            coverage_bits.append(
+                "Frida hooks did not run — runtime SharedPreferences/Cipher instrumentation "
+                "coverage is reduced."
+            )
+        if "backup_extractor" in skipped_names:
+            coverage_bits.append(
+                "run-as backup extraction skipped — SharedPreferences/DB rows appear only after "
+                "the app has written them and the package is debuggable."
+            )
+        if "log" in skipped_names or "runtime" in skipped_names or "uiautomator" in skipped_names:
+            coverage_bits.append(
+                "Some ADB dynamic tools were skipped — logcat/UI exercise coverage is incomplete."
+            )
         parts.append("<h2>Skipped tools</h2>")
         parts.append(
             "<p class=\"lead\">These analyzers require a live ADB device or Frida server "
-            "and did not run in this session.</p>"
+            "and did not run in this session. Skipped dynamic tools mean reduced coverage — "
+            "absence of a dynamic finding is not proof the issue is absent.</p>"
         )
+        if coverage_bits:
+            parts.append(
+                "<ul>" + "".join(f"<li>{_esc(bit)}</li>" for bit in coverage_bits) + "</ul>"
+            )
         parts.extend(_tool_block(tool) for tool in skipped)
     parts.append("</section>")
     return "".join(parts)

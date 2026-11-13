@@ -39,6 +39,11 @@ _COLLAPSE_BY_RULE = {
 # Equivalent findings from overlapping tools — keep the preferred rule id.
 _EQUIVALENT_GROUPS = (
     ("MANIFEST_CLEARTEXT", "NETWORK_CLEARTEXT_ALLOWED"),
+    # Provider surfaces: keep COMPONENT_PROVIDER; drop authority/intent restates.
+    ("COMPONENT_PROVIDER", "COMPONENT_PROVIDER_AUTHORITY"),
+    ("COMPONENT_PROVIDER", "INTENT_EXPORTED_PROVIDER"),
+    # TrustAll: prefer static_code behavioral hit over ssl_pinning duplicate.
+    ("CODE_TRUST_ALL_CERTS", "SSL_TRUST_ALL"),
 )
 
 
@@ -69,12 +74,14 @@ def consolidate_findings(findings: list) -> list:
         item["_collapse_count"] = 1
         out.append(item)
 
-    # Drop secondary cleartext duplicate if both exist.
+    # Drop secondary duplicates if both exist.
     present = {f.get("rule_id") for f in out}
     drop = set()
     for preferred, secondary in _EQUIVALENT_GROUPS:
         if preferred in present and secondary in present:
             drop.add(secondary)
+    # If only INTENT_EXPORTED_PROVIDER exists without COMPONENT_PROVIDER, keep it.
+    # If COMPONENT_PROVIDER_AUTHORITY exists without COMPONENT_PROVIDER, keep authority.
     if drop:
         out = [f for f in out if f.get("rule_id") not in drop]
 

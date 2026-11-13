@@ -28,6 +28,26 @@ def _mask(s):
     return s if len(s) <= 60 else s[:57] + "..."
 
 
+# Well-known AWS docs / lab placeholders — not live credentials.
+_LAB_AWS_KEYS = {
+    "AKIAIOSFODNN7EXAMPLE",
+    "AKIAI44QH8DHBEXAMPLE",
+}
+
+
+def _annotate_secret(rule: str, evidence: str) -> str:
+    """Tag format-only / lab-placeholder matches so reports stay honest."""
+    if rule != "SECRET_AWS_KEY":
+        return evidence
+    key = evidence.split(":")[-1].strip() if ":" in evidence else evidence
+    key = key.split()[0] if key else evidence
+    bare = re.search(r"AKIA[0-9A-Z]{16}", evidence)
+    matched = bare.group(0) if bare else key
+    if matched in _LAB_AWS_KEYS or "EXAMPLE" in matched:
+        return f"{evidence} [lab/docs placeholder — format-only]"
+    return f"{evidence} [format-only — not validated against AWS]"
+
+
 def _strings_from_bytes(data, min_len=6):
     """Extract printable ASCII strings from a binary blob."""
     out, cur = [], bytearray()
@@ -49,11 +69,18 @@ def run(ctx):
     seen_findings = set()
 
     def _emit(rule, evidence):
+        evidence = _annotate_secret(rule, evidence)
         key = (rule, evidence[:50])
         if key in seen_findings:
             return
         seen_findings.add(key)
-        F.append({"rule_id": rule, "evidence": evidence})
+        item = {"rule_id": rule, "evidence": evidence}
+        # Lab placeholders stay discoverable but do not drive Critical scoring.
+        if rule == "SECRET_AWS_KEY" and ("placeholder" in evidence or "EXAMPLE" in evidence):
+            item["severity"] = "Info"
+            item["confidence"] = "Low"
+            item["title"] = "AWS access key pattern (lab placeholder)"
+        F.append(item)
 
     # ---- 1. Scan DEX strings ----
     dex_strings = 0

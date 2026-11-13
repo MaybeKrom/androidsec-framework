@@ -21,11 +21,22 @@ SEVERITY_ORDER = {"Critical": 0, "High": 1, "Medium": 2, "Low": 3, "Info": 4}
 
 
 def sorted_findings(findings):
-    """Same order as the HTML table, so an exploit link index stays stable."""
+    """Same order as the HTML table, so an exploit link index stays stable.
+
+    Severity first, then auto-exploit priority (providers/run-as before TLS FPs),
+    then rule id for stability.
+    """
+    try:
+        from webapp.exploit_grounding import exploit_priority
+    except Exception:  # pragma: no cover — keep report gen usable without webapp
+        def exploit_priority(_finding):
+            return 0
+
     return sorted(
         findings,
         key=lambda item: (
             SEVERITY_ORDER.get(item.get("severity"), 9),
+            -exploit_priority(item),
             item.get("rule_id") or "",
         ),
     )

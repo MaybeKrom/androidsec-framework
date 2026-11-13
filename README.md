@@ -87,6 +87,10 @@ Security assessment PDFs and AI exploitation reports are produced locally under 
 - Default provider: **Anthropic Claude** (`claude-sonnet-5`)  
 - Also: OpenAI, Gemini, OpenRouter, DeepSeek, xAI, custom OpenAI-compatible  
 - Evidence-gated confirmation: `CONFIRMED` · `PARTIAL` · `UNCONFIRMED`  
+- **BYOK**: paste an API key in the Exploit form — used only for that HTTP request (Authorization header). Keys are **not** written to reports, prompts, git, or server logs.  
+- **What the LLM sees**: finding JSON (rule/title/severity/evidence/recommendation), package metadata, device model/serial, and prior step stdout. The APK binary itself is **not** uploaded.  
+
+**Analyzer count:** **27** registered tools (`python main.py --list-analyzers`).
 
 ---
 
@@ -206,10 +210,15 @@ python app.py
 ## Reporting notes
 
 - Noisy duplicate rules are **collapsed** for readability.  
-- Cleartext duplicates from manifest + network tools are **deduplicated**.  
+- Cleartext / provider / TrustAll overlaps from multiple tools are **deduplicated**.  
+- Correlator rows are **informational attack-chain notes** (do not double-count score).  
 - `LAB_CHALLENGE` rows are **coverage inventory**, not automatic Confirmed vulns.  
+- AWS key hits are **format-only** (not live-validated); known docs placeholders are Info.  
+- Library DEX noise (OkHttp HostnameVerifier type refs, bare `checkServerTrusted`) is filtered.  
+- Logcat scanning prefers **PID / package** scope and blocks UIAutomator dump tags.  
 - Exploitation PDFs are **single-finding** reports (not the full-app scorecard).  
-- CVSS values on exploitation covers are **estimates** aligned to severity/class.
+- Exploitation covers show a **qualitative CVSS band** only — not a fake decimal / vector.  
+- Skipped Frida/ADB tools are called out as **reduced dynamic coverage**.
 
 ---
 
@@ -225,6 +234,12 @@ python app.py
 
 ```bash
 python -m unittest discover -s tests -p "test_*.py"
+```
+
+Lab expected-findings seeds (precision / recall benchmark helpers):
+
+```text
+tests/fixtures/lab_expected_findings.json
 ```
 
 ---

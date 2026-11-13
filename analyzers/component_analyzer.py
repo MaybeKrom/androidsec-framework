@@ -35,6 +35,11 @@ def run(ctx):
         if not is_exported:
             continue
 
+        # AndroidX ProfileInstaller receiver is framework noise (often DUMP permission).
+        if "androidx.profileinstaller" in name or name.endswith("ProfileInstallReceiver"):
+            L.append(f"  [i] skipped framework receiver: {name}")
+            continue
+
         # Detect launcher activity — informational only
         is_launcher = False
         for itf in child.findall("intent-filter"):

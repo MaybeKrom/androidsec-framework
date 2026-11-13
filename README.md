@@ -1,162 +1,157 @@
-# androidsec — Android APK Security Assessment Tool
+# androsec — Android VAPT Assessment Framework
 
-**androidsec** is an integrated Android application security assessment tool that performs both **static** and **dynamic** analysis on APK files. It produces detailed HTML and JSON security reports mapped to the **OWASP MASVS** (Mobile Application Security Verification Standard).
+**androsec** is an Android application security assessment framework built for lab VAPT and graduation / MSS-style reporting. It combines **static analyzers**, **dynamic ADB/Frida/UIAutomator checks**, an **AI-assisted exploitation PoC pipeline**, and professional **HTML / JSON / PDF** deliverables mapped to **OWASP MASVS**.
 
-## Features
+> Authorized testing only. Use on apps and devices you own or have explicit permission to assess (DIVA, AndroGoat, InsecureBankv2, UnCrackable, Damn Vulnerable Bank, etc.).
 
-### Static Analysis
-- **APK Information** — Package name, version, signing certificates, SDK versions
-- **Manifest Analysis** — `debuggable`, `allowBackup`, `usesCleartextTraffic`, legacy storage flags
-- **Permission Analysis** — Categorises permissions by sensitivity (location, SMS, contacts, camera, etc.)
-- **Exported Component Detection** — Identifies exported activities, services, receivers, and providers
-- **Attack Surface Analysis** — Deep link enumeration, browsable intent-filters, wildcard hosts
-- **Secret Detection** — AWS keys, Google API keys, Firebase tokens, private keys, JWTs, hardcoded passwords, hex blobs — scans both DEX strings and native `.so` files
-- **Static Code Scan** — Weak crypto (ECB, DES), insecure random, trust-all certificates, hostname verifier bypass
-- **Resilience Controls** — Detects root/Frida/Xposed/debug/emulator checks (positive controls)
-- **Storage Analysis** — World-readable/writable files, external storage usage, sensitive data logging
-- **Network Configuration** — `networkSecurityConfig` presence, cleartext traffic, hardcoded HTTP URLs
-- **WebView Security** — JavaScript bridge, file access, universal access misconfigurations
-- **API & Endpoint Extraction** — URL and S3 bucket discovery from DEX strings
-- **Cloud Misconfiguration** — Firebase database read-access testing
+## What’s inside
 
-### Dynamic Analysis (requires ADB device/emulator)
-- **ADB Device Inspector** — Device properties, app installation status
-- **Runtime Inspector** — App launch monitoring, crash detection via logcat
-- **Frida Runtime Analyzer** — Hooks SharedPreferences writes and Cipher operations at runtime
-- **Log Analyzer** — Scans logcat for leaked passwords, tokens, credit card numbers, emails
+| Layer | Capability |
+|-------|------------|
+| Static | Manifest, components, secrets, crypto/SQL/WebView, network/NSC, SBOM, intent abuse, native `.so`, lab challenge mapper, attack-chain correlator |
+| Dynamic | ADB device readiness, runtime crash watch, run-as prefs/DB extraction, UIAutomator challenge menus, Frida hooks, logcat secrets |
+| AI Exploit | Grounded PoC planning → ADB/Frida execution → evidence gate → MSS PDF write-up with CVSS estimate + TOC |
+| Reports | HTML + JSON + WeasyPrint PDF; single-finding exploitation PDFs |
 
-### Reporting
-- **HTML Report** — Professional styled report with executive summary, findings table, severity badges, MASVS categories
-- **JSON Report** — Machine-readable format for CI/CD integration
-- **Risk Scoring** — Weighted severity × confidence model, capped at 100, with PASS/LOW/MEDIUM/HIGH/CRITICAL levels
+## Feature highlights
+
+### Core static analyzers
+- **apk_info** — package/version/SDK, certs, native ABIs  
+- **manifest** — debuggable, backup, cleartext, legacy storage, taskAffinity, sharedUserId  
+- **permission** — dangerous permission inventory (informational by default)  
+- **component** — exported activities/services/receivers/providers + authorities  
+- **attack_surface** / **deeplink_fuzzer** — browsable links + generated `am start -d` PoCs  
+- **secret_detector** — AWS/Google/Firebase/JWT/keys in DEX, configs, and `.so`  
+- **static_code** — weak crypto, insecure random, TrustAll / HostnameVerifier, resilience controls  
+- **storage** / **network** / **webview** — storage modes, cleartext/HTTP, JS bridge  
+
+### MSS-oriented tools (`extra/`)
+- **sql_injection** — rawQuery/execSQL / provider URI candidates  
+- **crypto_key** — hardcoded keys/IVs and weak transforms  
+- **ssl_pinning** — OkHttp/NSC pins vs TrustAll conflicts  
+- **intent_abuse** — unprotected exported surfaces + PoC commands  
+- **native_security** — anti-analysis / sensitive strings in native libs  
+- **sbom** — third-party library fingerprints  
+- **lab_mapper** — DIVA / AndroGoat / IBV2 / UnCrackable / DVB challenge inventory  
+- **finding_correlator** — multi-signal attack chains (e.g. exported WebView + JS bridge)  
+- **api_extractor** / **cloud_checker** — endpoint recon + Firebase open-read probe  
+
+### Dynamic tools (need ADB device/emulator)
+- **adb_inspector** — device props, ABI, root/Frida readiness  
+- **runtime** — launch + FATAL EXCEPTION watch  
+- **backup_extractor** — `run-as` SharedPreferences / databases when debuggable  
+- **uiautomator** — UI hierarchy / challenge-menu capture  
+- **frida** — SharedPreferences + Cipher hooks  
+- **log** — password/token/email/CC (Luhn-validated) with tombstone noise filtered  
+
+### AI exploitation (web UI)
+- Provider support: Anthropic (default `claude-sonnet-5`), OpenAI, Gemini, OpenRouter, DeepSeek, xAI, custom  
+- Evidence-gated confirmation (`CONFIRMED` / `PARTIAL` / `UNCONFIRMED`)  
+- PDF: cover CVSS estimate, table of contents, section page-breaks, captured evidence  
 
 ## Installation
 
 ```bash
-# Install Python dependencies
 pip install -r requirements.txt
 
-# For dynamic analysis, ensure the following are available:
-# - ADB (Android Debug Bridge) on PATH
-# - Frida server running on the target device/emulator
+# PDF reports
+pip install weasyprint
+# Debian/Kali also need: sudo apt install libpango-1.0-0 libpangoft2-1.0-0
+
+# Dynamic analysis
+# - adb on PATH, device/emulator authorized
+# - frida-tools + frida-server on device (for frida analyzer / AI Frida steps)
 ```
 
-## Usage
+## CLI usage
 
 ```bash
-# Basic scan (runs static + dynamic analyzers)
+# Full scan (static + dynamic)
 python main.py target.apk
 
-# Run only static analysis (no ADB device or emulator required)
+# Static only
 python main.py target.apk --static-only
 
-# Scan with specific output directory
+# Custom output directory
 python main.py target.apk -o ./my_reports
 
-# Run only specific analyzers
-python main.py target.apk --only manifest permission component secret_detector
+# Select / skip analyzers
+python main.py target.apk --only manifest component secret_detector sql_injection lab_mapper
+python main.py target.apk --skip frida uiautomator
 
-# Skip specific analyzers
-python main.py target.apk --skip frida runtime adb_inspector
-
-# List all available analyzers
+# List analyzers
 python main.py --list-analyzers
 
-# Run unit test suite
+# Tests
 python -m unittest discover -s tests -p "test_*.py"
 ```
 
-### Available Analyzer IDs
+## Web UI
+
+```bash
+cd webapp
+python app.py
+# open http://127.0.0.1:5000
+```
+
+Flow: upload/select APK → choose analyzers → (optional) attach device → HTML/PDF security report → **Exploit** on a finding → AI PoC + exploitation PDF download.
+
+## Analyzer IDs
 
 | ID | Type | Description |
 |----|------|-------------|
-| `apk_info` | Static | APK metadata and certificate info |
-| `manifest` | Static | AndroidManifest.xml security flags |
-| `permission` | Static | Permission sensitivity analysis |
-| `component` | Static | Exported component detection (activities, services, receivers, providers) |
-| `attack_surface` | Static | Deep link / intent-filter analysis |
-| `secret_detector` | Static | Secret / credential detection in DEX and native .so libraries |
-| `static_code` | Static | Cryptographic & security code pattern scanning |
-| `storage` | Static | Storage security patterns |
-| `network` | Static | Network security configuration & cleartext detection |
-| `webview` | Static | WebView security analysis |
-| `api_extractor` | Static | URL / S3 bucket extraction |
-| `deeplink_fuzzer` | Static | Browsable activity enumeration |
-| `cloud_checker` | Static | Firebase misconfiguration testing |
-| `adb_inspector` | Dynamic | ADB device inspection |
-| `runtime` | Dynamic | Runtime crash & monkey trace monitoring |
-| `frida` | Dynamic | Frida runtime instrumentation |
-| `log` | Dynamic | Logcat sensitive data scanning |
+| `apk_info` | Static | Metadata + certificates + ABIs |
+| `manifest` | Static | Security-relevant manifest flags |
+| `permission` | Static | Dangerous permission inventory |
+| `component` | Static | Exported components + provider authorities |
+| `attack_surface` | Static | Deep link / intent-filter surface |
+| `secret_detector` | Static | Embedded secrets (DEX/assets/.so) |
+| `static_code` | Static | Crypto / TLS code patterns + resilience |
+| `storage` | Static | Insecure storage patterns |
+| `network` | Static | Cleartext / HTTP / NSC signals |
+| `webview` | Static | JS bridge / file access |
+| `api_extractor` | Static | URL / S3 / staging endpoint recon |
+| `deeplink_fuzzer` | Static | Browsable activities + PoC URIs |
+| `cloud_checker` | Static/Live | Firebase open-read probe |
+| `sql_injection` | Static | SQL concatenation / provider URIs |
+| `crypto_key` | Static | Hardcoded keys / weak transforms |
+| `ssl_pinning` | Static | Pinning vs TrustAll |
+| `intent_abuse` | Static | Exported Intent/provider abuse PoCs |
+| `native_security` | Static | Native library security strings |
+| `sbom` | Static | Third-party library fingerprints |
+| `lab_mapper` | Static | Known lab-app challenge inventory |
+| `finding_correlator` | Static | Correlated attack chains |
+| `adb_inspector` | Dynamic | Device / env readiness |
+| `runtime` | Dynamic | Launch + crash monitoring |
+| `backup_extractor` | Dynamic | run-as prefs/DB extraction |
+| `uiautomator` | Dynamic | UI / challenge menu dump |
+| `frida` | Dynamic | Runtime hooks |
+| `log` | Dynamic | Sensitive logcat findings |
 
-## Architecture
+## Reporting notes
+
+- Duplicate noisy rules are **collapsed** (e.g. many HostnameVerifier hits → one row).  
+- `MANIFEST_CLEARTEXT` and `NETWORK_CLEARTEXT_ALLOWED` are treated as equivalents (one kept).  
+- Lab challenge rows (`LAB_CHALLENGE`) are **coverage inventory**, not automatic Confirmed vulns — confirm with exploit / dynamic tools.  
+- Exploitation PDFs are **single-finding** reports (not the full-app scorecard).
+
+## Project layout
 
 ```
-main.py                  # CLI Orchestrator — runs analyzers, enriches findings, generates reports
-context.py               # AppContext — lazy-loaded APK/DEX/ZIP access with caching
-├── analyzers/           # 13 analyzer modules (static + dynamic)
-│   ├── utils.py         # Shared utilities (SHA-256, device checks, formatting)
-│   ├── apk_info_analyzer.py
-│   ├── manifest_analyzer.py
-│   ├── permission_analyzer.py
-│   ├── component_analyzer.py
-│   ├── attack_surface_analyzer.py
-│   ├── secret_detector.py
-│   ├── static_code_scanner.py
-│   ├── storage_analyzer.py
-│   ├── network_config_analyzer.py
-│   ├── adb_device_inspector.py
-│   ├── runtime_inspector.py
-│   ├── frida_runtime_analyzer.py
-│   └── log_analyzer.py
-├── extra/               # Additional analysis modules
-│   ├── webview_analyzer.py
-│   ├── api_extractor.py
-│   ├── deeplink_fuzzer.py
-│   └── cloud_misconfig_checker.py
-├── engine/
-│   └── risk_engine.py   # Severity × confidence risk scoring
-├── rules/
-│   ├── rules.json       # Rule definitions (severity, description, recommendation)
-│   ├── owasp_mapping.json  # Rule → OWASP MASVS mapping
-│   ├── rules_engine.py  # Enriches findings with rule metadata
-│   └── owasp_mapper.py  # Applies MASVS tags
-├── reporter/
-│   └── report_generator.py  # HTML + JSON report generation
-├── tests/               # Unit test suite
-│   ├── test_rules.py    # Rule integrity & mapping tests
-│   ├── test_risk_engine.py # Risk scoring tests
-│   └── test_utils.py    # Utility function tests
-├── scripts/
-│   └── runtime_monitor.js   # Frida instrumentation script
-└── output_reports/      # Generated reports (gitignored)
+analyzers/          # core static + dynamic analyzers
+extra/              # MSS extensions (sql, crypto, ssl, intent, sbom, lab, …)
+rules/              # rules.json, OWASP map, consolidate
+reporter/           # HTML + PDF security reports
+webapp/             # Flask UI + AI exploit pipeline
+scripts/            # Frida JS helpers
+tests/              # unit tests
 ```
 
-## OWASP MASVS Coverage
+## Environment tips
 
-| Category | Coverage |
-|----------|----------|
-| MASVS-STORAGE | SharedPreferences, external storage, world-readable files, sensitive logging |
-| MASVS-CRYPTO | Weak ciphers (ECB, DES), weak hashes (MD5, SHA-1), insecure random |
-| MASVS-NETWORK | Cleartext traffic, missing networkSecurityConfig, HTTP URLs, trust-all certs |
-| MASVS-PLATFORM | Permissions, exported components, deep links, WebView misconfigurations |
-| MASVS-RESILIENCE | Root/Frida/Xposed/debug/emulator detection (positive controls) |
-| MASVS-CODE | Runtime crash detection |
+- **Android-x86 in VirtualBox** is fine for ADB install/launch/logcat/content; **Frida is often flaky** there — prefer Genymotion, official emulator, or a rooted phone for Frida-heavy work.  
+- Set `ANDROID_SERIAL` when multiple devices are connected.
 
-## Running Tests
+## License / ethics
 
-Execute the automated test suite with Python's built-in `unittest`:
-
-```bash
-python -m unittest discover -s tests -p "test_*.py"
-```
-
-## Sample APKs
-
-The repository includes three test APKs:
-- **DivaApplication.apk** — DIVA (Damn Insecure and Vulnerable App)
-- **InsecureBankv2.apk** — InsecureBankv2
-- **UnCrackable-Level1.apk** — OWASP UnCrackable Level 1
-
-## License
-
-Graduation project — for educational purposes only.
+For educational and authorized security testing. You are responsible for lawful use, API token spend, and lab isolation.

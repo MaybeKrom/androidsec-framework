@@ -25,9 +25,12 @@ def run(ctx):
     
     if urls:
         L.append("\n  [+] Potential API Endpoints:")
-        for u in sorted(urls)[:30]: # Cap at 30 for readability
+        for u in sorted(urls)[:30]:  # Cap at 30 for readability
             L.append(f"      {u}")
-            
+            low = u.lower()
+            if any(tok in low for tok in ("staging", "dev.", "internal", "localhost", "127.0.0.1", ".local")):
+                F.append({"rule_id": "NETWORK_ENDPOINT_INTERNAL", "evidence": u})
+
     if s3s:
         L.append("\n  [+] AWS S3 Buckets:")
         for s in sorted(s3s):

@@ -13,16 +13,15 @@ DISCLAIMER = (
 )
 
 _METHODOLOGY = (
-    "This assessment was performed through static analysis of the supplied APK, "
-    "complemented by optional runtime tooling (ADB, Frida) when a compatible "
-    "device was available. Findings are graded by severity "
-    "(Critical / High / Medium / Low / Info) and assigned a confidence "
-    "level based on the detection method. The risk score is derived from "
-    "severity × confidence weights, capped at 100. Resilience controls "
-    "(root, Frida, Xposed, debug, and emulator detection) are reported as "
-    "informational observations of positive defences, not as vulnerabilities. "
-    "OWASP MASVS mappings are provided for each finding to contextualise results "
-    "against the mobile security standard."
+    "This assessment combines static APK analysis (manifest, components, secrets, "
+    "crypto/SQL/WebView patterns, SBOM fingerprints, lab-challenge mapping, and "
+    "multi-signal correlation) with optional dynamic tooling (ADB, UIAutomator, "
+    "run-as backup extraction, Frida, logcat) when a compatible device is available. "
+    "Findings are graded by severity (Critical / High / Medium / Low / Info) and "
+    "confidence. The risk score uses severity × confidence weights, capped at 100. "
+    "Resilience controls (root/Frida/Xposed/debug/emulator detection) and lab-challenge "
+    "inventory rows are informational coverage aids, not always exploitable vulns. "
+    "OWASP MASVS mappings contextualise each finding against the mobile security standard."
 )
 
 

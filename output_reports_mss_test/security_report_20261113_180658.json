@@ -1,0 +1,595 @@
+{
+    "metadata": {
+        "target": "DivaApplication.apk",
+        "target_basename": "DivaApplication.apk",
+        "timestamp": "2026-11-13 18:06:58",
+        "sha256": "5cefc51fce9bd760b92ab2340477f4dda84b4ae0c5d04a8c9493e4fe34fab7c5",
+        "size_human": "1.4 MB",
+        "package": "jakhar.aseem.diva",
+        "app_name": "jakhar.aseem.diva",
+        "version_name": "1.0",
+        "min_sdk": "15",
+        "target_sdk": "23"
+    },
+    "summary": {
+        "counts": {
+            "Critical": 0,
+            "High": 9,
+            "Medium": 9,
+            "Low": 0,
+            "Info": 26
+        },
+        "score": 100,
+        "level": "CRITICAL"
+    },
+    "findings": [
+        {
+            "severity": "High",
+            "confidence": "High",
+            "title": "Application is debuggable",
+            "description": "android:debuggable=true allows attaching a debugger and inspecting memory/state.",
+            "recommendation": "Remove android:debuggable or set to false in release builds.",
+            "rule_id": "MANIFEST_DEBUGGABLE",
+            "evidence": "debuggable=true",
+            "masvs": "MASVS-RESILIENCE-2"
+        },
+        {
+            "severity": "Medium",
+            "confidence": "High",
+            "title": "Backup allowed",
+            "description": "android:allowBackup enables extraction of private app storage via adb backup.",
+            "recommendation": "Set android:allowBackup=\"false\" for sensitive apps.",
+            "rule_id": "MANIFEST_BACKUP",
+            "evidence": "allowBackup=true (default)",
+            "masvs": "MASVS-STORAGE-2"
+        },
+        {
+            "severity": "Medium",
+            "confidence": "High",
+            "title": "Low targetSdkVersion",
+            "description": "App targets an older Android SDK, missing modern security defaults.",
+            "recommendation": "Target the latest Android SDK.",
+            "rule_id": "MANIFEST_LOW_TARGET_SDK",
+            "evidence": "targetSdkVersion=23",
+            "masvs": "MASVS-PLATFORM-1"
+        },
+        {
+            "severity": "Info",
+            "confidence": "High",
+            "title": "Storage permission requested (requested)",
+            "description": "Permission is requested in the manifest. Not proof of misuse by itself.",
+            "recommendation": "Use scoped storage APIs; avoid broad access.",
+            "rule_id": "PERMISSION_STORAGE",
+            "evidence": "android.permission.READ_EXTERNAL_STORAGE  (+1 similar matches collapsed)",
+            "masvs": "MASVS-PLATFORM-1"
+        },
+        {
+            "severity": "Info",
+            "confidence": "High",
+            "title": "Launcher activity",
+            "description": "Main activity with MAIN/LAUNCHER intent-filter — exported by design and required for app launching.",
+            "recommendation": "Informational only; this is expected behaviour.",
+            "rule_id": "COMPONENT_LAUNCHER",
+            "evidence": "jakhar.aseem.diva.MainActivity (permission=none)",
+            "masvs": "MASVS-PLATFORM-1"
+        },
+        {
+            "severity": "Medium",
+            "confidence": "High",
+            "title": "Exported activity",
+            "description": "An activity is exported and reachable by other apps.",
+            "recommendation": "Set android:exported=\"false\" or protect with permission.",
+            "rule_id": "COMPONENT_ACTIVITY",
+            "evidence": "jakhar.aseem.diva.APICredsActivity (permission=none)",
+            "masvs": "MASVS-PLATFORM-1"
+        },
+        {
+            "severity": "Medium",
+            "confidence": "High",
+            "title": "Exported activity",
+            "description": "An activity is exported and reachable by other apps.",
+            "recommendation": "Set android:exported=\"false\" or protect with permission.",
+            "rule_id": "COMPONENT_ACTIVITY",
+            "evidence": "jakhar.aseem.diva.APICreds2Activity (permission=none)",
+            "masvs": "MASVS-PLATFORM-1"
+        },
+        {
+            "severity": "High",
+            "confidence": "High",
+            "title": "Exported content provider",
+            "description": "A content provider is exported and reachable by other apps.",
+            "recommendation": "Set android:exported=\"false\" or protect with android:permission.",
+            "rule_id": "COMPONENT_PROVIDER",
+            "evidence": "jakhar.aseem.diva.NotesProvider (permission=none) authorities=jakhar.aseem.diva.provider.notesprovider",
+            "masvs": "MASVS-PLATFORM-1"
+        },
+        {
+            "severity": "High",
+            "confidence": "High",
+            "title": "Exported provider authority",
+            "description": "Provider authority enumerated.",
+            "recommendation": "Protect authority with permissions.",
+            "rule_id": "COMPONENT_PROVIDER_AUTHORITY",
+            "evidence": "content://jakhar.aseem.diva.provider.notesprovider",
+            "masvs": "MASVS-PLATFORM-1"
+        },
+        {
+            "severity": "Medium",
+            "confidence": "High",
+            "title": "External storage usage",
+            "description": "App writes to external storage.",
+            "recommendation": "Use scoped storage / app-specific directories.",
+            "rule_id": "STORAGE_EXTERNAL",
+            "evidence": "getExternalFilesDir  (+1 similar matches collapsed)",
+            "masvs": "MASVS-STORAGE-2"
+        },
+        {
+            "severity": "Medium",
+            "confidence": "Medium",
+            "title": "No network security config",
+            "description": "App does not define networkSecurityConfig while also having network capability.",
+            "recommendation": "Add a network_security_config.xml.",
+            "rule_id": "NETWORK_NO_CONFIG",
+            "evidence": "no networkSecurityConfig (INTERNET permission declared)",
+            "masvs": "MASVS-NETWORK-1"
+        },
+        {
+            "severity": "Medium",
+            "confidence": "Medium",
+            "title": "SQLiteQueryBuilder usage",
+            "description": "Query builder present — verify selection sanitization.",
+            "recommendation": "Validate and parameterize selection.",
+            "rule_id": "SQL_QUERY_BUILDER_USAGE",
+            "evidence": "Landroid/database/sqlite/SQLiteQueryBuilder;",
+            "masvs": "MASVS-CODE-4"
+        },
+        {
+            "severity": "Medium",
+            "confidence": "Medium",
+            "title": "Content URI candidate",
+            "description": "content:// URI resembling notes/tracker tables.",
+            "recommendation": "Test with content query and injection payloads in lab.",
+            "rule_id": "SQL_PROVIDER_URI_CANDIDATE",
+            "evidence": "content://jakhar.aseem.diva.provider.notesprovider/notes",
+            "masvs": "MASVS-PLATFORM-1"
+        },
+        {
+            "severity": "High",
+            "confidence": "High",
+            "title": "Unprotected exported component",
+            "description": "Exported without permission.",
+            "recommendation": "Add permission or disable export.",
+            "rule_id": "INTENT_EXPORTED_UNPROTECTED",
+            "evidence": "activity:jakhar.aseem.diva.APICredsActivity actions=['jakhar.aseem.diva.action.VIEW_CREDS']",
+            "masvs": "MASVS-PLATFORM-1"
+        },
+        {
+            "severity": "Info",
+            "confidence": "High",
+            "title": "Activity start PoC",
+            "description": "Suggested am start command.",
+            "recommendation": "Validate authorization on extras.",
+            "rule_id": "INTENT_ACTIVITY_POC",
+            "evidence": "adb shell am start -n jakhar.aseem.diva/jakhar.aseem.diva.APICredsActivity",
+            "masvs": "MASVS-PLATFORM-1"
+        },
+        {
+            "severity": "High",
+            "confidence": "High",
+            "title": "Unprotected exported component",
+            "description": "Exported without permission.",
+            "recommendation": "Add permission or disable export.",
+            "rule_id": "INTENT_EXPORTED_UNPROTECTED",
+            "evidence": "activity:jakhar.aseem.diva.APICreds2Activity actions=['jakhar.aseem.diva.action.VIEW_CREDS2']",
+            "masvs": "MASVS-PLATFORM-1"
+        },
+        {
+            "severity": "Info",
+            "confidence": "High",
+            "title": "Activity start PoC",
+            "description": "Suggested am start command.",
+            "recommendation": "Validate authorization on extras.",
+            "rule_id": "INTENT_ACTIVITY_POC",
+            "evidence": "adb shell am start -n jakhar.aseem.diva/jakhar.aseem.diva.APICreds2Activity",
+            "masvs": "MASVS-PLATFORM-1"
+        },
+        {
+            "severity": "High",
+            "confidence": "High",
+            "title": "Exported provider (intent abuse)",
+            "description": "Exported ContentProvider surface.",
+            "recommendation": "exported=false or signature permission.",
+            "rule_id": "INTENT_EXPORTED_PROVIDER",
+            "evidence": "jakhar.aseem.diva.NotesProvider authorities=jakhar.aseem.diva.provider.notesprovider permission=none read=none write=none",
+            "masvs": "MASVS-PLATFORM-1"
+        },
+        {
+            "severity": "Info",
+            "confidence": "High",
+            "title": "Provider query PoC",
+            "description": "Suggested content query command.",
+            "recommendation": "Run in lab to confirm access.",
+            "rule_id": "INTENT_PROVIDER_POC",
+            "evidence": "adb shell content query --uri content://jakhar.aseem.diva.provider.notesprovider",
+            "masvs": "MASVS-PLATFORM-1"
+        },
+        {
+            "severity": "Medium",
+            "confidence": "Medium",
+            "title": "Sensitive string in native lib",
+            "description": "Interesting secret-like string in .so.",
+            "recommendation": "Remove secrets from native code.",
+            "rule_id": "NATIVE_SENSITIVE_STRING",
+            "evidence": "lib/mips/libdivajni.so: JNI_OnLoad  (+1 similar matches collapsed)",
+            "masvs": "MASVS-STORAGE-1"
+        },
+        {
+            "severity": "Info",
+            "confidence": "Low",
+            "title": "JNI_OnLoad present",
+            "description": "Native library exports JNI_OnLoad.",
+            "recommendation": "Review native security.",
+            "rule_id": "NATIVE_JNI_ONLOAD",
+            "evidence": "lib/mips/libdivajni.so",
+            "masvs": "MASVS-RESILIENCE-1"
+        },
+        {
+            "severity": "Info",
+            "confidence": "Low",
+            "title": "JNI_OnLoad present",
+            "description": "Native library exports JNI_OnLoad.",
+            "recommendation": "Review native security.",
+            "rule_id": "NATIVE_JNI_ONLOAD",
+            "evidence": "lib/armeabi-v7a/libdivajni.so",
+            "masvs": "MASVS-RESILIENCE-1"
+        },
+        {
+            "severity": "Info",
+            "confidence": "Low",
+            "title": "JNI_OnLoad present",
+            "description": "Native library exports JNI_OnLoad.",
+            "recommendation": "Review native security.",
+            "rule_id": "NATIVE_JNI_ONLOAD",
+            "evidence": "lib/x86_64/libdivajni.so",
+            "masvs": "MASVS-RESILIENCE-1"
+        },
+        {
+            "severity": "Info",
+            "confidence": "Low",
+            "title": "JNI_OnLoad present",
+            "description": "Native library exports JNI_OnLoad.",
+            "recommendation": "Review native security.",
+            "rule_id": "NATIVE_JNI_ONLOAD",
+            "evidence": "lib/x86/libdivajni.so",
+            "masvs": "MASVS-RESILIENCE-1"
+        },
+        {
+            "severity": "Info",
+            "confidence": "Low",
+            "title": "JNI_OnLoad present",
+            "description": "Native library exports JNI_OnLoad.",
+            "recommendation": "Review native security.",
+            "rule_id": "NATIVE_JNI_ONLOAD",
+            "evidence": "lib/arm64-v8a/libdivajni.so",
+            "masvs": "MASVS-RESILIENCE-1"
+        },
+        {
+            "severity": "Info",
+            "confidence": "Low",
+            "title": "JNI_OnLoad present",
+            "description": "Native library exports JNI_OnLoad.",
+            "recommendation": "Review native security.",
+            "rule_id": "NATIVE_JNI_ONLOAD",
+            "evidence": "lib/mips64/libdivajni.so",
+            "masvs": "MASVS-RESILIENCE-1"
+        },
+        {
+            "severity": "Info",
+            "confidence": "Low",
+            "title": "JNI_OnLoad present",
+            "description": "Native library exports JNI_OnLoad.",
+            "recommendation": "Review native security.",
+            "rule_id": "NATIVE_JNI_ONLOAD",
+            "evidence": "lib/armeabi/libdivajni.so",
+            "masvs": "MASVS-RESILIENCE-1"
+        },
+        {
+            "severity": "Info",
+            "confidence": "High",
+            "title": "Lab vulnerable app detected",
+            "description": "Known intentionally vulnerable training app.",
+            "recommendation": "Use challenge mapper for coverage.",
+            "rule_id": "LAB_APP_DETECTED",
+            "evidence": "DIVA (jakhar.aseem.diva)",
+            "masvs": "MASVS-PLATFORM-1"
+        },
+        {
+            "severity": "Info",
+            "confidence": "High",
+            "title": "Lab challenge inventory item",
+            "description": "Challenge present in lab profile.",
+            "recommendation": "Verify with dedicated analyzer/exploit.",
+            "rule_id": "LAB_CHALLENGE",
+            "evidence": "[DIVA] INSECURE_LOGGING: Insecure logging of credentials",
+            "masvs": "MASVS-PLATFORM-1"
+        },
+        {
+            "severity": "Info",
+            "confidence": "High",
+            "title": "Lab challenge inventory item",
+            "description": "Challenge present in lab profile.",
+            "recommendation": "Verify with dedicated analyzer/exploit.",
+            "rule_id": "LAB_CHALLENGE",
+            "evidence": "[DIVA] HARDCODING_PART1: Hardcoded credentials / validation",
+            "masvs": "MASVS-PLATFORM-1"
+        },
+        {
+            "severity": "Info",
+            "confidence": "High",
+            "title": "Lab challenge inventory item",
+            "description": "Challenge present in lab profile.",
+            "recommendation": "Verify with dedicated analyzer/exploit.",
+            "rule_id": "LAB_CHALLENGE",
+            "evidence": "[DIVA] INSECURE_STORAGE_1: Insecure data storage (SharedPreferences)",
+            "masvs": "MASVS-PLATFORM-1"
+        },
+        {
+            "severity": "Info",
+            "confidence": "High",
+            "title": "Lab challenge inventory item",
+            "description": "Challenge present in lab profile.",
+            "recommendation": "Verify with dedicated analyzer/exploit.",
+            "rule_id": "LAB_CHALLENGE",
+            "evidence": "[DIVA] INSECURE_STORAGE_2: Insecure data storage (SQLite)",
+            "masvs": "MASVS-PLATFORM-1"
+        },
+        {
+            "severity": "Info",
+            "confidence": "High",
+            "title": "Lab challenge inventory item",
+            "description": "Challenge present in lab profile.",
+            "recommendation": "Verify with dedicated analyzer/exploit.",
+            "rule_id": "LAB_CHALLENGE",
+            "evidence": "[DIVA] INSECURE_STORAGE_3: Insecure data storage (files)",
+            "masvs": "MASVS-PLATFORM-1"
+        },
+        {
+            "severity": "Info",
+            "confidence": "High",
+            "title": "Lab challenge inventory item",
+            "description": "Challenge present in lab profile.",
+            "recommendation": "Verify with dedicated analyzer/exploit.",
+            "rule_id": "LAB_CHALLENGE",
+            "evidence": "[DIVA] INSECURE_STORAGE_4: Insecure data storage (external)",
+            "masvs": "MASVS-PLATFORM-1"
+        },
+        {
+            "severity": "Info",
+            "confidence": "High",
+            "title": "Lab challenge inventory item",
+            "description": "Challenge present in lab profile.",
+            "recommendation": "Verify with dedicated analyzer/exploit.",
+            "rule_id": "LAB_CHALLENGE",
+            "evidence": "[DIVA] INPUT_VALIDATION_1: Input validation / SQL injection",
+            "masvs": "MASVS-PLATFORM-1"
+        },
+        {
+            "severity": "Info",
+            "confidence": "High",
+            "title": "Lab challenge inventory item",
+            "description": "Challenge present in lab profile.",
+            "recommendation": "Verify with dedicated analyzer/exploit.",
+            "rule_id": "LAB_CHALLENGE",
+            "evidence": "[DIVA] INPUT_VALIDATION_2: Input validation issues",
+            "masvs": "MASVS-PLATFORM-1"
+        },
+        {
+            "severity": "Info",
+            "confidence": "High",
+            "title": "Lab challenge inventory item",
+            "description": "Challenge present in lab profile.",
+            "recommendation": "Verify with dedicated analyzer/exploit.",
+            "rule_id": "LAB_CHALLENGE",
+            "evidence": "[DIVA] ACCESS_CONTROL_1: Access control / exported components",
+            "masvs": "MASVS-PLATFORM-1"
+        },
+        {
+            "severity": "Info",
+            "confidence": "High",
+            "title": "Lab challenge inventory item",
+            "description": "Challenge present in lab profile.",
+            "recommendation": "Verify with dedicated analyzer/exploit.",
+            "rule_id": "LAB_CHALLENGE",
+            "evidence": "[DIVA] ACCESS_CONTROL_2: Access control issues",
+            "masvs": "MASVS-PLATFORM-1"
+        },
+        {
+            "severity": "Info",
+            "confidence": "High",
+            "title": "Lab challenge inventory item",
+            "description": "Challenge present in lab profile.",
+            "recommendation": "Verify with dedicated analyzer/exploit.",
+            "rule_id": "LAB_CHALLENGE",
+            "evidence": "[DIVA] ACCESS_CONTROL_3: Access control / provider",
+            "masvs": "MASVS-PLATFORM-1"
+        },
+        {
+            "severity": "Info",
+            "confidence": "High",
+            "title": "Lab challenge inventory item",
+            "description": "Challenge present in lab profile.",
+            "recommendation": "Verify with dedicated analyzer/exploit.",
+            "rule_id": "LAB_CHALLENGE",
+            "evidence": "[DIVA] HARDCODING_PART2: Hardcoding issues part 2",
+            "masvs": "MASVS-PLATFORM-1"
+        },
+        {
+            "severity": "Info",
+            "confidence": "High",
+            "title": "Lab challenge inventory item",
+            "description": "Challenge present in lab profile.",
+            "recommendation": "Verify with dedicated analyzer/exploit.",
+            "rule_id": "LAB_CHALLENGE",
+            "evidence": "[DIVA] INPUT_VALIDATION_3: Input validation part 3",
+            "masvs": "MASVS-PLATFORM-1"
+        },
+        {
+            "severity": "High",
+            "confidence": "High",
+            "title": "Correlated provider + SQL",
+            "description": "Exported provider with SQLite APIs.",
+            "recommendation": "Parameterize queries; restrict provider.",
+            "rule_id": "CORRELATED_PROVIDER_SQL",
+            "evidence": "Exported ContentProvider with SQLite APIs — injection / data leak candidate | jakhar.aseem.diva.NotesProvider",
+            "masvs": "MASVS-PLATFORM-1"
+        },
+        {
+            "severity": "High",
+            "confidence": "High",
+            "title": "Correlated debuggable storage",
+            "description": "Debuggable + prefs/password signals.",
+            "recommendation": "Disable debug; encrypt prefs.",
+            "rule_id": "CORRELATED_DEBUG_STORAGE",
+            "evidence": "Debuggable app with SharedPreferences/password strings — run-as credential theft path | debuggable + prefs/password",
+            "masvs": "MASVS-STORAGE-1"
+        },
+        {
+            "severity": "High",
+            "confidence": "High",
+            "title": "Correlated backup + prefs",
+            "description": "Backup allowed with SharedPreferences.",
+            "recommendation": "Disable backup or encrypt data.",
+            "rule_id": "CORRELATED_BACKUP_PREFS",
+            "evidence": "Backup allowed with SharedPreferences usage — adb backup data extraction path | allowBackup + SharedPreferences",
+            "masvs": "MASVS-STORAGE-2"
+        }
+    ],
+    "tool_outputs": [
+        {
+            "tool": "apk_info",
+            "output": "=== APK Information ===\nFile:          DivaApplication.apk\nSize:          1.4 MB\nApp name:      Diva\nPackage:       jakhar.aseem.diva\nVersion name:  1.0\nVersion code:  1\nMin SDK:       15\nTarget SDK:    23\nMain activity: jakhar.aseem.diva.MainActivity\nSigned:        True\nNative ABIs:   arm64-v8a, armeabi, armeabi-v7a, mips, mips64, x86, x86_64\n\nCertificates: 1\n  [1] Subject: Common Name: Android Debug, Organization: Android, Country: US\n      Issuer:  Common Name: Android Debug, Organization: Android, Country: US\n      Serial:  562245855\n      SHA1:    AE 4E AD 5A EA BA 4E 9E 4F C9 28 E7 C7 F7 FD 45 9F 00 80 31\n      SHA256:  35 D7 F7 AD 35 DF B8 26 B7 0F A4 B7 31 87 ED 47 85 40 E3 2C 8B 8C 56 53 B8 65 68 02 9F CD 58 40",
+            "skipped": false,
+            "finding_count": 0
+        },
+        {
+            "tool": "manifest",
+            "output": "=== Manifest Analysis ===\ndebuggable:              true\nallowBackup:             true\nusesCleartextTraffic:    not_set\nnetworkSecurityConfig:   not_set\nrequestLegacyExternalStorage: false\ntargetSdkVersion:        23",
+            "skipped": false,
+            "finding_count": 3
+        },
+        {
+            "tool": "permission",
+            "output": "=== Permission Analysis === (3 total)\n\nDangerous: 2\n  [!] android.permission.READ_EXTERNAL_STORAGE\n  [!] android.permission.WRITE_EXTERNAL_STORAGE\n\nOther: 1\n  [+] android.permission.INTERNET",
+            "skipped": false,
+            "finding_count": 2
+        },
+        {
+            "tool": "component",
+            "output": "=== Exported Component Analysis ===\nExported components: 5\n  [i] activity: jakhar.aseem.diva.MainActivity (exported=None, permission=none)\n  [!] activity: jakhar.aseem.diva.APICredsActivity (exported=None, permission=none)\n  [!] activity: jakhar.aseem.diva.APICreds2Activity (exported=None, permission=none)\n  [!] provider: jakhar.aseem.diva.NotesProvider (exported=true, permission=none, authority=jakhar.aseem.diva.provider.notesprovider)",
+            "skipped": false,
+            "finding_count": 5
+        },
+        {
+            "tool": "attack_surface",
+            "output": "=== Attack Surface Analysis ===\n  [-] No intent-filters with data found.",
+            "skipped": false,
+            "finding_count": 0
+        },
+        {
+            "tool": "secret_detector",
+            "output": "=== Secret Detection ===\nDEX strings scanned: 19914\n  [.so] lib/mips/libdivajni.so: 5488 bytes, 26 strings\n  [.so] lib/armeabi-v7a/libdivajni.so: 13460 bytes, 70 strings\n  [.so] lib/x86_64/libdivajni.so: 5704 bytes, 23 strings\n  [.so] lib/x86/libdivajni.so: 5164 bytes, 24 strings\n  [.so] lib/arm64-v8a/libdivajni.so: 5512 bytes, 22 strings\n  [.so] lib/mips64/libdivajni.so: 6048 bytes, 24 strings\n  [.so] lib/armeabi/libdivajni.so: 13452 bytes, 70 strings\n\nNative libraries scanned: 7",
+            "skipped": false,
+            "finding_count": 0
+        },
+        {
+            "tool": "static_code",
+            "output": "=== Static Code Scan ===\nStrings scanned: 19914\n\nNo resilience controls detected (no root/frida/xposed/debug/emulator checks).",
+            "skipped": false,
+            "finding_count": 0
+        },
+        {
+            "tool": "storage",
+            "output": "=== Storage Analysis ===\n  [!] STORAGE_EXTERNAL: getExternalFilesDir\n  [!] STORAGE_EXTERNAL: getExternalFilesDirs\n  [!] STORAGE_EXTERNAL: getExternalStorageDirectory",
+            "skipped": false,
+            "finding_count": 3
+        },
+        {
+            "tool": "network",
+            "output": "=== Network Configuration Analysis ===\nnetworkSecurityConfig: NOT DEFINED\nusesCleartextTraffic:  not_set\nNetwork capability:    YES (INTERNET permission declared)",
+            "skipped": false,
+            "finding_count": 1
+        },
+        {
+            "tool": "webview",
+            "output": "=== WebView Security Analysis ===\n  [-] No dangerous WebView configurations detected.",
+            "skipped": false,
+            "finding_count": 0
+        },
+        {
+            "tool": "api_extractor",
+            "output": "=== API & Endpoint Recon ===\n  [-] Extracted 1 URLs and 0 S3 Buckets.\n\n  [+] Potential API Endpoints:\n      http://payatu.com",
+            "skipped": false,
+            "finding_count": 0
+        },
+        {
+            "tool": "deeplink_fuzzer",
+            "output": "=== Deep Link Fuzzer / PoC Generator ===\n  [-] No browsable intent filters (deep links) found.",
+            "skipped": false,
+            "finding_count": 0
+        },
+        {
+            "tool": "cloud_checker",
+            "output": "=== Cloud Misconfiguration Checker ===\n  [-] No Firebase URLs found.",
+            "skipped": false,
+            "finding_count": 0
+        },
+        {
+            "tool": "sql_injection",
+            "output": "=== SQL Injection Scanner ===\nFindings: 2\n  [!] SQL_QUERY_BUILDER_USAGE: Landroid/database/sqlite/SQLiteQueryBuilder;\n  [!] SQL_PROVIDER_URI_CANDIDATE: content://jakhar.aseem.diva.provider.notesprovider/notes",
+            "skipped": false,
+            "finding_count": 2
+        },
+        {
+            "tool": "crypto_key",
+            "output": "=== Crypto Key Analyzer ===\n  [-] No hardcoded key / weak transform candidates found.",
+            "skipped": false,
+            "finding_count": 0
+        },
+        {
+            "tool": "ssl_pinning",
+            "output": "=== SSL Pinning Analyzer ===\n  [-] No pinning or TLS customization markers found.",
+            "skipped": false,
+            "finding_count": 0
+        },
+        {
+            "tool": "intent_abuse",
+            "output": "=== Intent Abuse Analyzer ===\nCandidates: 6\n  [!] unprotected activity: jakhar.aseem.diva.APICredsActivity\n  [!] unprotected activity: jakhar.aseem.diva.APICreds2Activity\n  [!] provider jakhar.aseem.diva.NotesProvider → content://jakhar.aseem.diva.provider.notesprovider",
+            "skipped": false,
+            "finding_count": 6
+        },
+        {
+            "tool": "native_security",
+            "output": "=== Native Security Analyzer ===\nNative libraries: 7\n  [.so] lib/mips/libdivajni.so: 5488 bytes, interesting=1\n      [!] NATIVE_SENSITIVE_STRING: JNI_OnLoad\n  [.so] lib/armeabi-v7a/libdivajni.so: 13460 bytes, interesting=1\n      [!] NATIVE_SENSITIVE_STRING: JNI_OnLoad\n  [.so] lib/x86_64/libdivajni.so: 5704 bytes, interesting=1\n      [!] NATIVE_SENSITIVE_STRING: JNI_OnLoad\n  [.so] lib/x86/libdivajni.so: 5164 bytes, interesting=1\n      [!] NATIVE_SENSITIVE_STRING: JNI_OnLoad\n  [.so] lib/arm64-v8a/libdivajni.so: 5512 bytes, interesting=1\n      [!] NATIVE_SENSITIVE_STRING: JNI_OnLoad\n  [.so] lib/mips64/libdivajni.so: 6048 bytes, interesting=1\n      [!] NATIVE_SENSITIVE_STRING: JNI_OnLoad\n  [.so] lib/armeabi/libdivajni.so: 13452 bytes, interesting=1\n      [!] NATIVE_SENSITIVE_STRING: JNI_OnLoad",
+            "skipped": false,
+            "finding_count": 14
+        },
+        {
+            "tool": "sbom",
+            "output": "=== SBOM / Dependency Scanner ===\nLibraries fingerprint matched: 0\n  [-] No well-known third-party fingerprints matched.",
+            "skipped": false,
+            "finding_count": 0
+        },
+        {
+            "tool": "lab_mapper",
+            "output": "=== Lab Challenge Mapper ===\nDetected lab app: DIVA (jakhar.aseem.diva)\nChallenges mapped: 13\n  [lab] INSECURE_LOGGING — Insecure logging of credentials\n  [lab] HARDCODING_PART1 — Hardcoded credentials / validation\n  [lab] INSECURE_STORAGE_1 — Insecure data storage (SharedPreferences)\n  [lab] INSECURE_STORAGE_2 — Insecure data storage (SQLite)\n  [lab] INSECURE_STORAGE_3 — Insecure data storage (files)\n  [lab] INSECURE_STORAGE_4 — Insecure data storage (external)\n  [lab] INPUT_VALIDATION_1 — Input validation / SQL injection\n  [lab] INPUT_VALIDATION_2 — Input validation issues\n  [lab] ACCESS_CONTROL_1 — Access control / exported components\n  [lab] ACCESS_CONTROL_2 — Access control issues\n  [lab] ACCESS_CONTROL_3 — Access control / provider\n  [lab] HARDCODING_PART2 — Hardcoding issues part 2\n  [lab] INPUT_VALIDATION_3 — Input validation part 3\nNote: LAB_CHALLENGE rows are inventory for assessment coverage — pair with static/dynamic tools and AI exploit for confirmation.",
+            "skipped": false,
+            "finding_count": 14
+        },
+        {
+            "tool": "finding_correlator",
+            "output": "=== Finding Correlator ===\nSignals: backup, debuggable, exported_activity, exported_provider, password_string, prefs, sql_api\n  [!] CORRELATED_PROVIDER_SQL: Exported ContentProvider with SQLite APIs — injection / data leak candidate\n  [!] CORRELATED_DEBUG_STORAGE: Debuggable app with SharedPreferences/password strings — run-as credential theft path\n  [!] CORRELATED_BACKUP_PREFS: Backup allowed with SharedPreferences usage — adb backup data extraction path",
+            "skipped": false,
+            "finding_count": 3
+        }
+    ]
+}

@@ -13,8 +13,24 @@ PATTERNS = {
 
 BLOCKLIST = (
     "vndksupport", "SurfaceFlinger", "AppWindowToken", "ActivityManager",
-    "libc", "WindowManager", "graphics.mapper", "OpenGLRenderer", "ProcessStatsService"
+    "libc", "WindowManager", "graphics.mapper", "OpenGLRenderer", "ProcessStatsService",
+    "F/DEBUG", "tombstone", "DEBUGGER", "rax ", "rbx ", "rcx ", "rdx ",
 )
+
+
+def _luhn_ok(number: str) -> bool:
+    digits = [int(c) for c in number if c.isdigit()]
+    if len(digits) < 13 or len(digits) > 19:
+        return False
+    checksum = 0
+    parity = len(digits) % 2
+    for i, d in enumerate(digits):
+        if i % 2 == parity:
+            d *= 2
+            if d > 9:
+                d -= 9
+        checksum += d
+    return checksum % 10 == 0
 
 def run(ctx):
     L, F = ["=== Log Analyzer ==="], []
@@ -35,10 +51,14 @@ def run(ctx):
             continue
 
         for rule, pat in PATTERNS.items():
-            if pat.search(line):
-                snippet = line[:180]
-                L.append(f"  [!] {rule}: {snippet}")
-                F.append({"rule_id": rule, "evidence": snippet})
+            match = pat.search(line)
+            if not match:
+                continue
+            if rule == "LOG_CREDIT_CARD" and not _luhn_ok(match.group(0)):
+                continue
+            snippet = line[:180]
+            L.append(f"  [!] {rule}: {snippet}")
+            F.append({"rule_id": rule, "evidence": snippet})
 
     L.insert(1, f"Logcat lines: {len(lines)}")
     return {"tool": "log", "output": "\n".join(L), "findings": F}

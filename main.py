@@ -16,26 +16,38 @@ from rules.owasp_mapper import OWASPMapper
 from rules.rules_engine import RulesEngine
 
 ANALYZERS = [
-    ("apk_info",        "analyzers.apk_info_analyzer",        "APK metadata and signing certificates"),
-    ("manifest",        "analyzers.manifest_analyzer",        "Manifest flags: debuggable, backup, cleartext"),
-    ("permission",      "analyzers.permission_analyzer",      "Permission sensitivity (location, SMS, camera)"),
-    ("component",       "analyzers.component_analyzer",       "Exported activities, services, receivers, providers"),
-    ("attack_surface",  "analyzers.attack_surface_analyzer",  "Deep links and browsable intent-filters"),
-    ("secret_detector", "analyzers.secret_detector",          "Secrets and credentials in DEX and native libs"),
-    ("static_code",     "analyzers.static_code_scanner",      "Weak crypto, insecure random, trust-all certs"),
-    ("storage",         "analyzers.storage_analyzer",         "World-readable files and sensitive storage use"),
-    ("network",         "analyzers.network_config_analyzer",  "Cleartext traffic and network security config"),
-    ("webview",         "extra.webview_analyzer",             "WebView JavaScript bridge and file-access settings"),
-    ("api_extractor",   "extra.api_extractor",                "URLs and cloud endpoints from DEX strings"),
-    ("deeplink_fuzzer", "extra.deeplink_fuzzer",              "Browsable activity enumeration"),
-    ("cloud_checker",   "extra.cloud_misconfig_checker",      "Firebase read-access checks"),
-    ("adb_inspector",   "analyzers.adb_device_inspector",     "Device properties and install status (needs ADB)"),
-    ("runtime",         "analyzers.runtime_inspector",        "Launch and crash monitoring (needs ADB)"),
-    ("frida",           "analyzers.frida_runtime_analyzer",   "Runtime hooks for prefs and crypto (needs Frida)"),
-    ("log",             "analyzers.log_analyzer",             "Logcat scan for leaked secrets (needs ADB)"),
+    ("apk_info",          "analyzers.apk_info_analyzer",       "APK metadata, signing certificates, ABI inventory"),
+    ("manifest",          "analyzers.manifest_analyzer",       "Manifest flags: debuggable, backup, cleartext, affinity"),
+    ("permission",        "analyzers.permission_analyzer",     "Dangerous permission inventory (informational)"),
+    ("component",         "analyzers.component_analyzer",      "Exported activities, services, receivers, providers"),
+    ("attack_surface",    "analyzers.attack_surface_analyzer", "Deep links and browsable intent-filters"),
+    ("secret_detector",   "analyzers.secret_detector",         "Secrets and credentials in DEX, assets, native libs"),
+    ("static_code",       "analyzers.static_code_scanner",     "Weak crypto, insecure random, trust-all certs"),
+    ("storage",           "analyzers.storage_analyzer",        "World-readable files and sensitive storage use"),
+    ("network",           "analyzers.network_config_analyzer", "Cleartext traffic and network security config"),
+    ("webview",           "extra.webview_analyzer",            "WebView JS bridge and file-access settings"),
+    ("api_extractor",     "extra.api_extractor",               "URLs, S3, staging/internal endpoint recon"),
+    ("deeplink_fuzzer",   "extra.deeplink_fuzzer",             "Browsable activities + deep-link PoC commands"),
+    ("cloud_checker",     "extra.cloud_misconfig_checker",     "Firebase read-access checks"),
+    ("sql_injection",     "extra.sql_injection_scanner",       "SQLite / provider SQL injection patterns"),
+    ("crypto_key",        "extra.crypto_key_analyzer",         "Hardcoded keys/IVs and weak cipher transforms"),
+    ("ssl_pinning",       "extra.ssl_pinning_analyzer",        "SSL pinning presence vs TrustAll conflicts"),
+    ("intent_abuse",      "extra.intent_abuse_analyzer",       "Exported Intent/provider abuse candidates + PoCs"),
+    ("native_security",   "extra.native_security_analyzer",    "Native .so anti-analysis and sensitive strings"),
+    ("sbom",              "extra.sbom_dependency_scanner",     "Third-party library / SBOM fingerprints"),
+    ("lab_mapper",        "extra.lab_challenge_mapper",        "DIVA/AndroGoat/IBV2/UnCrackable challenge inventory"),
+    ("finding_correlator","extra.finding_correlator",          "Multi-signal attack-chain correlation"),
+    ("adb_inspector",     "analyzers.adb_device_inspector",    "Device props, root/Frida readiness (needs ADB)"),
+    ("runtime",           "analyzers.runtime_inspector",       "Launch and crash monitoring (needs ADB)"),
+    ("backup_extractor",  "extra.backup_extractor",            "run-as prefs/DB extraction when debuggable"),
+    ("uiautomator",       "extra.uiautomator_explorer",        "UI hierarchy / challenge menu capture (needs ADB)"),
+    ("frida",             "analyzers.frida_runtime_analyzer",  "Runtime hooks for prefs and crypto (needs Frida)"),
+    ("log",               "analyzers.log_analyzer",            "Logcat scan for leaked secrets (needs ADB)"),
 ]
 
-DYNAMIC_ANALYZERS = {"adb_inspector", "runtime", "frida", "log"}
+DYNAMIC_ANALYZERS = {
+    "adb_inspector", "runtime", "backup_extractor", "uiautomator", "frida", "log",
+}
 BASE = os.path.dirname(os.path.abspath(__file__))
 
 

@@ -13,7 +13,8 @@ def run(ctx):
     patterns = {
         "WEBVIEW_JS_BRIDGE": re.compile(r"addJavascriptInterface"),
         "WEBVIEW_FILE_ACCESS": re.compile(r"setAllowFileAccess\(true\)|setAllowFileAccessFromFileURLs\(true\)"),
-        "WEBVIEW_UNIVERSAL_ACCESS": re.compile(r"setAllowUniversalAccessFromFileURLs\(true\)")
+        "WEBVIEW_UNIVERSAL_ACCESS": re.compile(r"setAllowUniversalAccessFromFileURLs\(true\)"),
+        "WEBVIEW_JS_ENABLED": re.compile(r"setJavaScriptEnabled\(true\)"),
     }
 
     for d in ctx.dex:

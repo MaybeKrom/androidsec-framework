@@ -31,6 +31,16 @@ def run(ctx):
     if legacy.lower() == "true":
         F.append({"rule_id": "MANIFEST_LEGACY_STORAGE", "evidence": "requestLegacyExternalStorage=true"})
 
+    affinity = app.get(f"{NS}taskAffinity")
+    if affinity:
+        L.append(f"taskAffinity:            {affinity}")
+        F.append({"rule_id": "MANIFEST_TASK_AFFINITY", "evidence": f"taskAffinity={affinity}"})
+
+    shared = root.get(f"{NS}sharedUserId")
+    if shared:
+        L.append(f"sharedUserId:            {shared}")
+        F.append({"rule_id": "MANIFEST_SHARED_USER", "evidence": f"sharedUserId={shared}"})
+
     sdk = root.find("uses-sdk")
     if sdk is not None:
         target = sdk.get(f"{NS}targetSdkVersion")

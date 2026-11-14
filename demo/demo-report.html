@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>androsec — Automated Website Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --space-ink: #070B14;
+      --surface: #0C1222;
+      --surface-2: #10182A;
+      --turquoise: #19F9E0;
+      --lime: #B8FF30;
+      --steel: #2B3A55;
+      --snow: #F5F8FF;
+      --muted: #9AA8C2;
+      --line: rgba(43, 58, 85, 0.85);
+      --radius: 18px;
+      --shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+      --font: "IBM Plex Sans", "Segoe UI", sans-serif;
+      --display: "IBM Plex Serif", Georgia, serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: var(--font);
+      color: var(--snow);
+      background:
+        radial-gradient(900px 420px at 12% -8%, rgba(25, 249, 224, 0.12), transparent 55%),
+        radial-gradient(700px 380px at 92% 8%, rgba(184, 255, 48, 0.08), transparent 50%),
+        linear-gradient(180deg, #05080F 0%, var(--space-ink) 40%, #05080F 100%);
+      line-height: 1.55;
+      min-height: 100vh;
+    }
+
+    a { color: var(--turquoise); text-decoration: none; }
+    a:hover { color: var(--lime); }
+    code {
+      font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+      font-size: 0.86em;
+      color: var(--turquoise);
+    }
+
+    .shell {
+      width: min(1180px, calc(100% - 2.5rem));
+      margin: 0 auto;
+    }
+
+    .hero {
+      position: relative;
+      padding: 4.5rem 0 3rem;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: 10% -10% auto auto;
+      width: 420px;
+      height: 420px;
+      background:
+        conic-gradient(from 210deg, rgba(25,249,224,0.18), transparent 40%, rgba(184,255,48,0.12), transparent 70%);
+      filter: blur(8px);
+      pointer-events: none;
+    }
+    .kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--muted);
+    }
+    .kicker .dot {
+      width: 0.55rem;
+      height: 0.55rem;
+      border-radius: 2px;
+      background: var(--lime);
+      box-shadow: 0 0 0 4px rgba(184, 255, 48, 0.12);
+    }
+    .brand {
+      margin: 1rem 0 0.35rem;
+      font-family: var(--display);
+      font-size: clamp(2.6rem, 5vw, 4rem);
+      font-weight: 600;
+      letter-spacing: -0.04em;
+      line-height: 1.05;
+    }
+    .brand span { color: var(--lime); }
+    .lede {
+      max-width: 38rem;
+      margin: 0.85rem 0 0;
+      color: var(--muted);
+      font-size: 1.05rem;
+    }
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem 1.25rem;
+      margin-top: 1.75rem;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+    .meta-row strong { color: var(--snow); font-weight: 600; }
+    .cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: 1.75rem;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.7rem 1.1rem;
+      border-radius: 999px;
+      border: 1px solid var(--steel);
+      background: transparent;
+      color: var(--snow);
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s, transform 0.2s;
+    }
+    .btn:hover { border-color: var(--turquoise); transform: translateY(-1px); }
+    .btn.primary {
+      background: linear-gradient(135deg, rgba(25,249,224,0.18), rgba(184,255,48,0.14));
+      border-color: rgba(25, 249, 224, 0.55);
+      color: var(--snow);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 220px minmax(0, 1fr);
+      gap: 2rem;
+      padding-bottom: 4rem;
+      align-items: start;
+    }
+    .toc {
+      position: sticky;
+      top: 1.25rem;
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(12, 18, 34, 0.72);
+      backdrop-filter: blur(10px);
+    }
+    .toc h2 {
+      margin: 0 0 0.85rem;
+      font-size: 0.72rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .toc a {
+      display: grid;
+      grid-template-columns: 2rem 1fr;
+      gap: 0.55rem;
+      align-items: baseline;
+      padding: 0.45rem 0.35rem;
+      border-radius: 10px;
+      color: var(--muted);
+      font-size: 0.9rem;
+      transition: background 0.2s, color 0.2s;
+    }
+    .toc a span {
+      color: var(--lime);
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+      font-size: 0.8rem;
+    }
+    .toc a:hover,
+    .toc a.active {
+      background: rgba(25, 249, 224, 0.08);
+      color: var(--snow);
+    }
+
+    .timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 1.75rem;
+      position: relative;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+      gap: 1.35rem;
+      padding: 1.15rem;
+      border: 1px solid var(--line);
+      border-radius: calc(var(--radius) + 4px);
+      background:
+        linear-gradient(160deg, rgba(16, 24, 42, 0.92), rgba(12, 18, 34, 0.78));
+      box-shadow: var(--shadow);
+      opacity: 0;
+      transform: translateY(18px);
+      animation: rise 0.7s ease forwards;
+      animation-delay: calc(var(--i) * 0.07s);
+      position: relative;
+    }
+    @keyframes rise {
+      to { opacity: 1; transform: none; }
+    }
+    .step:hover {
+      border-color: rgba(25, 249, 224, 0.35);
+    }
+    .connector {
+      position: absolute;
+      left: 1.55rem;
+      bottom: -1.8rem;
+      width: 2px;
+      height: 1.8rem;
+      background: linear-gradient(var(--turquoise), transparent);
+      opacity: 0.45;
+    }
+    .step:last-child .connector { display: none; }
+
+    .shot {
+      margin: 0;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      background: #05080F;
+      min-height: 220px;
+    }
+    .shot img {
+      display: block;
+      width: 100%;
+      height: auto;
+      vertical-align: middle;
+    }
+    .shot figcaption {
+      padding: 0.45rem 0.7rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+      border-top: 1px solid var(--line);
+      background: rgba(5, 8, 15, 0.9);
+    }
+    .shot.gap {
+      display: grid;
+      place-content: center;
+      text-align: center;
+      padding: 2rem 1.25rem;
+      color: var(--muted);
+      background:
+        repeating-linear-gradient(
+          -45deg,
+          rgba(43, 58, 85, 0.25),
+          rgba(43, 58, 85, 0.25) 8px,
+          transparent 8px,
+          transparent 16px
+        ),
+        var(--surface);
+    }
+    .shot.gap strong { color: var(--lime); display: block; margin-bottom: 0.4rem; }
+
+    .copy {
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+      padding: 0.35rem 0.15rem 0.15rem;
+    }
+    .step-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.55rem;
+      align-items: center;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      border: 1px solid rgba(184, 255, 48, 0.35);
+      color: var(--lime);
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .route {
+      color: var(--muted);
+      border: 1px solid var(--line);
+      padding: 0.15rem 0.45rem;
+      border-radius: 8px;
+      background: rgba(5, 8, 15, 0.55);
+    }
+    .copy h2 {
+      margin: 0.15rem 0 0;
+      font-family: var(--display);
+      font-size: 1.45rem;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+    }
+    .summary {
+      margin: 0;
+      color: var(--snow);
+      font-weight: 500;
+    }
+    .detail {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    .live-url {
+      margin: 0.25rem 0 0;
+      font-size: 0.82rem;
+      color: var(--muted);
+      word-break: break-all;
+    }
+    .live-url span {
+      display: inline-block;
+      margin-right: 0.35rem;
+      color: var(--turquoise);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 0.68rem;
+    }
+    .notes {
+      margin: 0.35rem 0 0;
+      padding-left: 1.1rem;
+      color: #F5C451;
+      font-size: 0.88rem;
+    }
+
+    .footer {
+      border-top: 1px solid var(--line);
+      padding: 1.75rem 0 2.5rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    .footer strong { color: var(--snow); }
+
+    @media (max-width: 960px) {
+      .layout { grid-template-columns: 1fr; }
+      .toc { position: static; display: flex; flex-wrap: wrap; gap: 0.25rem 0.75rem; }
+      .toc h2 { width: 100%; }
+      .step { grid-template-columns: 1fr; }
+      .connector { display: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .step { animation: none; opacity: 1; transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="shell">
+      <p class="kicker"><span class="dot" aria-hidden="true"></span> King Saud University · Graduation Project Demo</p>
+      <h1 class="brand">andro<span>sec</span></h1>
+      <p class="lede">
+        Automated website walkthrough of the Android VAPT assessment framework —
+        Home through Assessment, scanning, reporting, device readiness, exploit, and decompile.
+      </p>
+      <div class="meta-row">
+        <div><strong>Captured</strong> 8/8 screens</div>
+        <div><strong>Target</strong> http://127.0.0.1:5000</div>
+        <div><strong>APK</strong> root:DivaApplication.apk</div>
+        <div><strong>Demo analyzers</strong> <code>apk_info</code>, <code>manifest</code>, <code>permission</code>, <code>component</code>, <code>secret_detector</code>, <code>static_code</code>, <code>storage</code>, <code>network</code></div>
+        <div><strong>Generated</strong> 2026-11-14T23:31:51</div>
+      </div>
+      <div class="cta-row">
+        <a class="btn primary" href="#step-01-home">Start walkthrough</a>
+        <button class="btn" type="button" id="toggle-auto">Auto-scroll timeline</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="shell layout">
+    <nav class="toc" aria-label="Demo steps">
+      <h2>Timeline</h2>
+      <a href="#step-01-home"><span>01</span>Home</a>
+<a href="#step-02-assessment"><span>02</span>Assessment — choose an APK</a>
+<a href="#step-03-analyzers"><span>03</span>Analyzer selection</a>
+<a href="#step-04-scanning"><span>04</span>Scan progress</a>
+<a href="#step-05-report"><span>05</span>Security report</a>
+<a href="#step-06-device"><span>06</span>Device readiness</a>
+<a href="#step-07-exploit"><span>07</span>AI exploit &amp; evidence</a>
+<a href="#step-08-decompile"><span>08</span>Decompile workspace</a>
+    </nav>
+    <main class="timeline">
+      
+    <article class="step" id="step-01-home" style="--i:0">
+      <div class="media"><figure class="shot"><img src="screenshots/01-home.png" alt="Home screenshot" loading="lazy" /><figcaption>01-home.png</figcaption></figure></div>
+      <div class="copy">
+        <div class="step-meta">
+          <span class="badge">Step 01</span>
+          <code class="route">/</code>
+        </div>
+        <h2>Home</h2>
+        <p class="summary">Landing page for the androsec assessment workspace.</p>
+        <p class="detail">Introduces the King Saud University graduation project: local APK assessment with static and dynamic analyzers, MASVS-mapped reports, and AI-assisted exploitation that stays on this machine. From here the user starts an assessment or reviews what the framework can run.</p>
+        <p class="live-url"><span>Live URL</span> http://127.0.0.1:5000/</p>
+        
+      </div>
+      <div class="connector" aria-hidden="true"></div>
+    </article>
+    
+
+    <article class="step" id="step-02-assessment" style="--i:1">
+      <div class="media"><figure class="shot"><img src="screenshots/02-assessment.png" alt="Assessment — choose an APK screenshot" loading="lazy" /><figcaption>02-assessment.png</figcaption></figure></div>
+      <div class="copy">
+        <div class="step-meta">
+          <span class="badge">Step 02</span>
+          <code class="route">/assess</code>
+        </div>
+        <h2>Assessment — choose an APK</h2>
+        <p class="summary">Upload or select a lab APK, then analyze or decompile.</p>
+        <p class="detail">The Assessment library lists sample APKs shipped with the repo (DIVA, InsecureBankv2, UnCrackable, …) plus any uploads. Users pick a target, then continue to analyzer selection or start a decompile.</p>
+        <p class="live-url"><span>Live URL</span> http://127.0.0.1:5000/assess</p>
+        <ul class="notes"><li>Selected APK key: root:DivaApplication.apk</li></ul>
+      </div>
+      <div class="connector" aria-hidden="true"></div>
+    </article>
+    
+
+    <article class="step" id="step-03-analyzers" style="--i:2">
+      <div class="media"><figure class="shot"><img src="screenshots/03-analyzers.png" alt="Analyzer selection screenshot" loading="lazy" /><figcaption>03-analyzers.png</figcaption></figure></div>
+      <div class="copy">
+        <div class="step-meta">
+          <span class="badge">Step 03</span>
+          <code class="route">/assess/analyzers</code>
+        </div>
+        <h2>Analyzer selection</h2>
+        <p class="summary">Choose static and optional dynamic tools before the scan.</p>
+        <p class="detail">Static analyzers are selected by default. Dynamic checks stay off until the user enables them and authorizes a connected device. Bulk controls (select static / all / clear) speed up configuration.</p>
+        <p class="live-url"><span>Live URL</span> http://127.0.0.1:5000/assess/analyzers?apk=root:DivaApplication.apk</p>
+        <ul class="notes"><li>Demo scan analyzers: apk_info, manifest, permission, component, secret_detector, static_code, storage, network</li></ul>
+      </div>
+      <div class="connector" aria-hidden="true"></div>
+    </article>
+    
+
+    <article class="step" id="step-04-scanning" style="--i:3">
+      <div class="media"><figure class="shot"><img src="screenshots/04-scanning.png" alt="Scan progress screenshot" loading="lazy" /><figcaption>04-scanning.png</figcaption></figure></div>
+      <div class="copy">
+        <div class="step-meta">
+          <span class="badge">Step 04</span>
+          <code class="route">/scan/&lt;job_id&gt;</code>
+        </div>
+        <h2>Scan progress</h2>
+        <p class="summary">Live progress while each analyzer runs against the APK.</p>
+        <p class="detail">The scanning board shows percent complete, elapsed time, and a per-tool checklist. When the job finishes, the UI navigates to the HTML security report for that run.</p>
+        <p class="live-url"><span>Live URL</span> http://127.0.0.1:5000/scan/86fc382d754f</p>
+        <ul class="notes"><li>Started job 86fc382d754f</li></ul>
+      </div>
+      <div class="connector" aria-hidden="true"></div>
+    </article>
+    
+
+    <article class="step" id="step-05-report" style="--i:4">
+      <div class="media"><figure class="shot"><img src="screenshots/05-report.png" alt="Security report screenshot" loading="lazy" /><figcaption>05-report.png</figcaption></figure></div>
+      <div class="copy">
+        <div class="step-meta">
+          <span class="badge">Step 05</span>
+          <code class="route">/reports/&lt;filename&gt;</code>
+        </div>
+        <h2>Security report</h2>
+        <p class="summary">Evidence-backed HTML report with PDF download.</p>
+        <p class="detail">The report summarizes findings, severity, and MASVS mapping. A sticky bar offers PDF download. Individual findings can open the AI Exploit workflow with the finding payload and scan metadata.</p>
+        <p class="live-url"><span>Live URL</span> http://127.0.0.1:5000/reports/security_report_20261114_233146.html</p>
+        <ul class="notes"><li>Report URL: http://127.0.0.1:5000/reports/security_report_20261114_233146.html</li></ul>
+      </div>
+      <div class="connector" aria-hidden="true"></div>
+    </article>
+    
+
+    <article class="step" id="step-06-device" style="--i:5">
+      <div class="media"><figure class="shot"><img src="screenshots/06-device.png" alt="Device readiness screenshot" loading="lazy" /><figcaption>06-device.png</figcaption></figure></div>
+      <div class="copy">
+        <div class="step-meta">
+          <span class="badge">Step 06</span>
+          <code class="route">/device</code>
+        </div>
+        <h2>Device readiness</h2>
+        <p class="summary">Connect and authorize a phone or emulator for dynamic checks.</p>
+        <p class="detail">Dynamic analyzers require adb on PATH and a ready serial. The page lists connected devices, supports TCP/IP connect, install/root helpers, and blocks dynamic scans until authorization is confirmed.</p>
+        <p class="live-url"><span>Live URL</span> http://127.0.0.1:5000/device</p>
+        
+      </div>
+      <div class="connector" aria-hidden="true"></div>
+    </article>
+    
+
+    <article class="step" id="step-07-exploit" style="--i:6">
+      <div class="media"><figure class="shot"><img src="screenshots/07-exploit.png" alt="AI exploit &amp; evidence screenshot" loading="lazy" /><figcaption>07-exploit.png</figcaption></figure></div>
+      <div class="copy">
+        <div class="step-meta">
+          <span class="badge">Step 07</span>
+          <code class="route">/exploit</code>
+        </div>
+        <h2>AI exploit &amp; evidence</h2>
+        <p class="summary">Grounded PoC planning for a single finding (BYOK).</p>
+        <p class="detail">Opened from a live report finding. The operator pastes an API key (used only for that request), acknowledges lab responsibility, and runs a grounded ADB/Frida PoC pipeline with an evidence gate and optional exploitation PDF.</p>
+        <p class="live-url"><span>Live URL</span> http://127.0.0.1:5000/exploit?report=security_report_20261114_233146.html&amp;i=0</p>
+        <ul class="notes"><li>Opened via finding link from the live report.</li></ul>
+      </div>
+      <div class="connector" aria-hidden="true"></div>
+    </article>
+    
+
+    <article class="step" id="step-08-decompile" style="--i:7">
+      <div class="media"><figure class="shot"><img src="screenshots/08-decompile.png" alt="Decompile workspace screenshot" loading="lazy" /><figcaption>08-decompile.png</figcaption></figure></div>
+      <div class="copy">
+        <div class="step-meta">
+          <span class="badge">Step 08</span>
+          <code class="route">/decompile/&lt;job_id&gt;</code>
+        </div>
+        <h2>Decompile workspace</h2>
+        <p class="summary">apktool + jadx decode, browse, and rebuild.</p>
+        <p class="detail">Started from Assessment. While decoding, the page shows live status; when done, users browse resources or Java sources and can rebuild the APK from the apktool project.</p>
+        <p class="live-url"><span>Live URL</span> http://127.0.0.1:5000/assess</p>
+        <ul class="notes"><li>Decompile UI gap: job did not start (tools missing or validation failed). Assessment page captured instead. apktool is not installed.</li></ul>
+      </div>
+      <div class="connector" aria-hidden="true"></div>
+    </article>
+    
+    </main>
+  </div>
+
+  <footer class="footer">
+    <div class="shell">
+      <p>
+        <strong>androsec</strong> — Android VAPT Assessment Framework ·
+        College of Computer and Information Sciences · King Saud University.
+        Screenshots were captured against the local Flask UI for authorized lab demonstration only.
+      </p>
+      <p>Regenerate with <code>python demo_walkthrough.py</code> or <code>python generate_report.py</code>.</p>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      const links = Array.from(document.querySelectorAll(".toc a"));
+      const steps = links.map((a) => document.querySelector(a.getAttribute("href"))).filter(Boolean);
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          const id = "#" + entry.target.id;
+          links.forEach((a) => a.classList.toggle("active", a.getAttribute("href") === id));
+        });
+      }, { rootMargin: "-35% 0px -55% 0px", threshold: 0.01 });
+      steps.forEach((el) => io.observe(el));
+
+      let timer = null;
+      const btn = document.getElementById("toggle-auto");
+      if (btn) {
+        btn.addEventListener("click", () => {
+          if (timer) {
+            clearInterval(timer);
+            timer = null;
+            btn.textContent = "Auto-scroll timeline";
+            return;
+          }
+          let i = 0;
+          btn.textContent = "Stop auto-scroll";
+          const tick = () => {
+            if (i >= steps.length) {
+              clearInterval(timer);
+              timer = null;
+              btn.textContent = "Auto-scroll timeline";
+              return;
+            }
+            steps[i].scrollIntoView({ behavior: "smooth", block: "start" });
+            i += 1;
+          };
+          tick();
+          timer = setInterval(tick, 3200);
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

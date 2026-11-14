@@ -1,0 +1,117 @@
+{
+  "base_url": "http://127.0.0.1:5000",
+  "generated_at": "2026-11-14T23:31:51",
+  "apk": "root:DivaApplication.apk",
+  "analyzers": [
+    "apk_info",
+    "manifest",
+    "permission",
+    "component",
+    "secret_detector",
+    "static_code",
+    "storage",
+    "network"
+  ],
+  "steps": [
+    {
+      "title": "Home",
+      "route": "/",
+      "summary": "Landing page for the androsec assessment workspace.",
+      "detail": "Introduces the King Saud University graduation project: local APK assessment with static and dynamic analyzers, MASVS-mapped reports, and AI-assisted exploitation that stays on this machine. From here the user starts an assessment or reviews what the framework can run.",
+      "id": "01-home",
+      "file": "01-home.png",
+      "url": "http://127.0.0.1:5000/",
+      "notes": [],
+      "captured": true
+    },
+    {
+      "title": "Assessment \u2014 choose an APK",
+      "route": "/assess",
+      "summary": "Upload or select a lab APK, then analyze or decompile.",
+      "detail": "The Assessment library lists sample APKs shipped with the repo (DIVA, InsecureBankv2, UnCrackable, \u2026) plus any uploads. Users pick a target, then continue to analyzer selection or start a decompile.",
+      "id": "02-assessment",
+      "file": "02-assessment.png",
+      "url": "http://127.0.0.1:5000/assess",
+      "notes": [
+        "Selected APK key: root:DivaApplication.apk"
+      ],
+      "captured": true
+    },
+    {
+      "title": "Analyzer selection",
+      "route": "/assess/analyzers",
+      "summary": "Choose static and optional dynamic tools before the scan.",
+      "detail": "Static analyzers are selected by default. Dynamic checks stay off until the user enables them and authorizes a connected device. Bulk controls (select static / all / clear) speed up configuration.",
+      "id": "03-analyzers",
+      "file": "03-analyzers.png",
+      "url": "http://127.0.0.1:5000/assess/analyzers?apk=root:DivaApplication.apk",
+      "notes": [
+        "Demo scan analyzers: apk_info, manifest, permission, component, secret_detector, static_code, storage, network"
+      ],
+      "captured": true
+    },
+    {
+      "title": "Scan progress",
+      "route": "/scan/<job_id>",
+      "summary": "Live progress while each analyzer runs against the APK.",
+      "detail": "The scanning board shows percent complete, elapsed time, and a per-tool checklist. When the job finishes, the UI navigates to the HTML security report for that run.",
+      "id": "04-scanning",
+      "file": "04-scanning.png",
+      "url": "http://127.0.0.1:5000/scan/86fc382d754f",
+      "notes": [
+        "Started job 86fc382d754f"
+      ],
+      "captured": true
+    },
+    {
+      "title": "Security report",
+      "route": "/reports/<filename>",
+      "summary": "Evidence-backed HTML report with PDF download.",
+      "detail": "The report summarizes findings, severity, and MASVS mapping. A sticky bar offers PDF download. Individual findings can open the AI Exploit workflow with the finding payload and scan metadata.",
+      "id": "05-report",
+      "file": "05-report.png",
+      "url": "http://127.0.0.1:5000/reports/security_report_20261114_233146.html",
+      "notes": [
+        "Report URL: http://127.0.0.1:5000/reports/security_report_20261114_233146.html"
+      ],
+      "captured": true
+    },
+    {
+      "title": "Device readiness",
+      "route": "/device",
+      "summary": "Connect and authorize a phone or emulator for dynamic checks.",
+      "detail": "Dynamic analyzers require adb on PATH and a ready serial. The page lists connected devices, supports TCP/IP connect, install/root helpers, and blocks dynamic scans until authorization is confirmed.",
+      "id": "06-device",
+      "file": "06-device.png",
+      "url": "http://127.0.0.1:5000/device",
+      "notes": [],
+      "captured": true
+    },
+    {
+      "title": "AI exploit & evidence",
+      "route": "/exploit",
+      "summary": "Grounded PoC planning for a single finding (BYOK).",
+      "detail": "Opened from a live report finding. The operator pastes an API key (used only for that request), acknowledges lab responsibility, and runs a grounded ADB/Frida PoC pipeline with an evidence gate and optional exploitation PDF.",
+      "id": "07-exploit",
+      "file": "07-exploit.png",
+      "url": "http://127.0.0.1:5000/exploit?report=security_report_20261114_233146.html&i=0",
+      "notes": [
+        "Opened via finding link from the live report."
+      ],
+      "captured": true
+    },
+    {
+      "title": "Decompile workspace",
+      "route": "/decompile/<job_id>",
+      "summary": "apktool + jadx decode, browse, and rebuild.",
+      "detail": "Started from Assessment. While decoding, the page shows live status; when done, users browse resources or Java sources and can rebuild the APK from the apktool project.",
+      "id": "08-decompile",
+      "file": "08-decompile.png",
+      "url": "http://127.0.0.1:5000/assess",
+      "notes": [
+        "Decompile UI gap: job did not start (tools missing or validation failed). Assessment page captured instead. apktool is not installed."
+      ],
+      "captured": true
+    }
+  ]
+}

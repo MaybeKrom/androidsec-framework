@@ -4,32 +4,26 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}androsec{% endblock %}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=redesign">
+  <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}" type="image/png">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=byte">
 </head>
 <body class="{% block body_class %}{% endblock %}">
+  <a class="skip" href="#content">Skip to content</a>
   <header class="top">
     <a class="brand" href="{{ url_for('home') }}">
-      <svg class="mark" viewBox="0 0 68 32" aria-hidden="true">
-        <rect x="1" y="1" width="14" height="14" rx="3" fill="#19F9E0"/>
-        <rect x="19" y="1" width="14" height="14" rx="3" fill="none" stroke="#2B3A55" stroke-width="1.6"/>
-        <rect x="37" y="1" width="14" height="14" rx="3" fill="#B8FF30"/>
-        <rect x="55" y="1" width="14" height="14" rx="3" fill="none" stroke="#2B3A55" stroke-width="1.6"/>
-        <rect x="1" y="17" width="14" height="14" rx="3" fill="none" stroke="#2B3A55" stroke-width="1.6"/>
-        <rect x="19" y="17" width="14" height="14" rx="3" fill="#B8FF30"/>
-        <rect x="37" y="17" width="14" height="14" rx="3" fill="none" stroke="#2B3A55" stroke-width="1.6"/>
-        <rect x="55" y="17" width="14" height="14" rx="3" fill="#B8FF30"/>
-      </svg>
-      <span class="word">andro<span>sec</span></span>
+      <img class="logo" src="{{ url_for('static', filename='androsec-logo.png') }}" alt="androsec">
     </a>
-    <nav>
+    <nav aria-label="Primary">
       <a href="{{ url_for('home') }}" {% if request.endpoint == 'home' %}class="active"{% endif %}>Home</a>
       <a href="{{ url_for('assess') }}" {% if request.endpoint != 'home' and not (request.endpoint or '').startswith('device.') %}class="active"{% endif %}>Assessment</a>
       <a href="{{ url_for('device.page') }}" {% if (request.endpoint or '').startswith('device.') %}class="active"{% endif %}>Device</a>
     </nav>
   </header>
-  <main>
+  <main id="content">
     {% block body %}{% endblock %}
   </main>
-  <footer class="foot">Authorized testing only. Reports stay on this machine.</footer>
+  <footer class="foot">
+    <p>Authorized testing only. Reports stay on this machine.</p>
+  </footer>
 </body>
 </html>

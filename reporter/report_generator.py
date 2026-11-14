@@ -6,17 +6,15 @@ from urllib.parse import urlencode
 from rules.owasp_mapper import masvs_link as masvs_cell
 
 
-SEV_COLOR = {
-    "Critical": "#8e44ad",
-    "High": "#e74c3c",
-    "Medium": "#e67e22",
-    "Low": "#f1c40f",
-    "Info": "#3498db",
+# Screen report uses the androsec palette only. Classes, not extra hues.
+SEV_CLASS = {
+    "Critical": "sev-critical",
+    "High": "sev-high",
+    "Medium": "sev-medium",
+    "Low": "sev-low",
+    "Info": "sev-info",
 }
-CONF_COLOR = {"High": "#27ae60", "Medium": "#f39c12", "Low": "#95a5a6"}
-LEVEL_COLOR = {"CRITICAL": "#8e44ad", "HIGH": "#e74c3c",
-               "MEDIUM": "#e67e22", "LOW": "#f1c40f",
-               "PASS": "#27ae60"}
+CONF_CLASS = {"High": "conf-high", "Medium": "conf-medium", "Low": "conf-low"}
 SEVERITY_ORDER = {"Critical": 0, "High": 1, "Medium": 2, "Low": 3, "Info": 4}
 
 
@@ -85,29 +83,70 @@ class ReportGenerator:
             cat_counts[cat] = cat_counts.get(cat, 0) + 1
 
         parts = [f"""<!DOCTYPE html><html><head><meta charset="utf-8">
-<title>androidsec Report — {esc(m.get('target_basename', m['target']))}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>androsec Report — {esc(m.get('target_basename', m['target']))}</title>
 <style>
-body{{font-family:Arial,sans-serif;margin:30px;background:#f4f6f9;color:#333}}
-a{{color:#1a5276}}
-h1,h2{{color:#2c3e50}}.card{{background:#fff;padding:20px;border-radius:8px;
-  box-shadow:0 2px 4px rgba(0,0,0,.08);margin-bottom:22px}}
-pre{{background:#1e1e1e;color:#0f0;padding:14px;border-radius:5px;overflow-x:auto;
-  white-space:pre-wrap;font-family:monospace;font-size:13px}}
-table{{width:100%;border-collapse:collapse;margin-top:10px}}
-th,td{{padding:10px;border:1px solid #ddd;text-align:left;vertical-align:top;font-size:14px}}
-th{{background:#2c3e50;color:#fff}}
-.badge{{display:inline-block;padding:3px 10px;border-radius:12px;color:#fff;font-weight:700;font-size:12px}}
-a.exploit{{display:inline-block;padding:4px 10px;border-radius:6px;background:#7a1f1f;color:#fff;text-decoration:none;font-weight:700;font-size:12px}}
-a.exploit:hover{{background:#9f2d3a}}
-.meta td{{border:0;padding:4px}}
-.summary{{display:flex;gap:16px;flex-wrap:wrap}}
-.summary div{{flex:1;min-width:120px;padding:14px;border-radius:6px;background:#ecf0f1;text-align:center}}
-.summary b{{display:block;font-size:22px}}
-.cat{{display:inline-block;padding:4px 10px;margin:4px 6px 4px 0;border-radius:14px;
-  background:#ecf0f1;font-size:13px}}
-.methodology p{{font-size:14px;line-height:1.55}}
+@font-face{{font-family:"Space Grotesk";font-style:normal;font-weight:600;font-display:swap;
+  src:url("/static/fonts/space-grotesk-600.woff2") format("woff2")}}
+@font-face{{font-family:"IBM Plex Sans";font-style:normal;font-weight:400;font-display:swap;
+  src:url("/static/fonts/ibm-plex-sans-400.woff2") format("woff2")}}
+@font-face{{font-family:"IBM Plex Sans";font-style:normal;font-weight:500;font-display:swap;
+  src:url("/static/fonts/ibm-plex-sans-500.woff2") format("woff2")}}
+@font-face{{font-family:"IBM Plex Mono";font-style:normal;font-weight:400;font-display:swap;
+  src:url("/static/fonts/ibm-plex-mono-400.woff2") format("woff2")}}
+*{{box-sizing:border-box}}
+body{{margin:0;background:#070B14;color:#F5F8FF;
+  font-family:"IBM Plex Sans","Liberation Sans",sans-serif;line-height:1.55;font-size:15px}}
+a{{color:#19F0E0}} a:hover{{color:#B8FF3D}}
+h1,h2,h3,.summary b{{font-family:"Space Grotesk","IBM Plex Sans",sans-serif;font-weight:600;
+  letter-spacing:-0.03em;color:#F5F8FF}}
+h1{{width:min(1120px,calc(100% - 48px));margin:0 auto;padding:36px 0 8px;font-size:2rem}}
+h2{{margin:0 0 12px;font-size:1.35rem}}
+h3{{margin:18px 0 8px;font-size:1.05rem}}
+.card{{width:min(1120px,calc(100% - 48px));margin:0 auto 18px;padding:22px 24px;
+  background:#070B14;background:color-mix(in srgb,#2B3A55 28%,#070B14);
+  border:1px solid #2B3A55;border-radius:4px}}
+p{{margin:0 0 10px}}
+pre{{background:#070B14;color:#F5F8FF;padding:14px;border-radius:4px;overflow-x:auto;
+  white-space:pre-wrap;font-family:"IBM Plex Mono",monospace;font-size:12.5px;line-height:1.5;
+  border:1px solid #2B3A55;border-left:3px solid #19F0E0}}
+table{{width:100%;border-collapse:collapse;margin-top:12px}}
+th,td{{padding:10px 12px;border-bottom:1px solid #2B3A55;text-align:left;vertical-align:top;font-size:13.5px}}
+th{{position:sticky;top:57px;background:#070B14;color:#19F0E0;font-size:11px;letter-spacing:0.08em;
+  text-transform:uppercase;font-weight:600}}
+td code{{font-family:"IBM Plex Mono",monospace;font-size:12px;color:#F5F8FF}}
+.badge{{display:inline-block;padding:2px 8px;border-radius:3px;color:#070B14;font-weight:600;
+  font-size:11px;letter-spacing:0.04em;text-transform:uppercase;background:#2B3A55}}
+.sev-critical,.found,.conf-high{{background:#B8FF3D;color:#070B14}}
+.sev-high,.conf-medium,.clear{{background:#19F0E0;color:#070B14}}
+.sev-medium,.conf-low,.skip{{background:#2B3A55;color:#F5F8FF}}
+.sev-low{{background:transparent;color:#F5F8FF;box-shadow:inset 0 0 0 1px #2B3A55}}
+.sev-info{{background:transparent;color:#19F0E0;box-shadow:inset 0 0 0 1px #19F0E0}}
+a.exploit{{display:inline-block;padding:4px 10px;border-radius:4px;background:#B8FF3D;color:#070B14;
+  text-decoration:none;font-weight:600;font-size:12px}}
+a.exploit:hover{{background:#F5F8FF;color:#070B14}}
+.meta td{{border:0;padding:6px 12px 6px 0}}
+.meta td:first-child{{width:168px;color:#19F0E0;font-size:12px;letter-spacing:0.06em;text-transform:uppercase}}
+.summary{{display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid #2B3A55;border-bottom:1px solid #2B3A55}}
+.summary div{{padding:14px 12px 14px 0;background:transparent;border-radius:0;text-align:left}}
+.summary div+div{{padding-left:12px;border-left:1px solid #2B3A55}}
+.summary b{{display:block;font-size:1.8rem;letter-spacing:-0.04em}}
+.count-critical b,.count-high b{{color:#B8FF3D}}
+.count-medium b{{color:#19F0E0}}
+.level-critical,.level-high{{color:#B8FF3D}}
+.level-medium{{color:#19F0E0}}
+.level-low,.level-pass{{color:#F5F8FF}}
+.cat{{display:inline-block;padding:4px 0;margin:0 18px 0 0;background:transparent;font-size:13px;
+  border-bottom:1px solid #2B3A55}}
+.methodology p{{font-size:15px;line-height:1.6;color:color-mix(in srgb,#F5F8FF 72%,#2B3A55)}}
+@media(max-width:720px){{
+  h1,.card{{width:min(1120px,calc(100% - 28px))}}
+  .summary{{grid-template-columns:1fr 1fr}}
+  .summary div+div{{border-left:0}}
+  table{{display:block;overflow-x:auto}}
+}}
 </style></head><body>
-<h1>androidsec — Integrated Security Assessment</h1>"""]
+<h1>androsec — Integrated Security Assessment</h1>"""]
 
         # ---------- Metadata card ----------
         meta_rows = [
@@ -128,13 +167,15 @@ a.exploit:hover{{background:#9f2d3a}}
 
         # ---------- Executive summary ----------
         level = s["level"]
-        lcolor = LEVEL_COLOR.get(level, "#333")
+        level_class = "level-" + esc(str(level).lower())
         parts.append(f'<div class="card"><h2>Executive Summary</h2>'
-                     f'<h3 style="color:{lcolor}">Risk Level: {esc(level)} '
+                     f'<h3 class="{level_class}">Risk Level: {esc(level)} '
                      f'— Score {s["score"]}/100</h3>'
                      '<div class="summary">')
         for k in ("Critical", "High", "Medium", "Low", "Info"):
-            parts.append(f'<div><b>{s["counts"].get(k, 0)}</b>{k}</div>')
+            parts.append(
+                f'<div class="count-{k.lower()}"><b>{s["counts"].get(k, 0)}</b>{k}</div>'
+            )
         parts.append('</div>')
 
         if cat_counts:
@@ -154,14 +195,14 @@ a.exploit:hover{{background:#9f2d3a}}
                          '<th>MASVS</th><th>Exploit</th></tr>')
             report_name = os.path.basename(path)
             for index, f in enumerate(sorted_findings(self.findings)):
-                sc = SEV_COLOR.get(f["severity"], "#333")
-                cc = CONF_COLOR.get(f.get("confidence", "High"), "#95a5a6")
+                sev = SEV_CLASS.get(f["severity"], "sev-info")
+                conf = CONF_CLASS.get(f.get("confidence", "High"), "conf-low")
                 query = urlencode({"report": report_name, "i": str(index)})
                 href = esc(f"/exploit?{query}")
                 parts.append(
                     f'<tr>'
-                    f'<td><span class="badge" style="background:{sc}">{esc(f["severity"])}</span></td>'
-                    f'<td><span class="badge" style="background:{cc}">{esc(f.get("confidence","High"))}</span></td>'
+                    f'<td><span class="badge {sev}">{esc(f["severity"])}</span></td>'
+                    f'<td><span class="badge {conf}">{esc(f.get("confidence","High"))}</span></td>'
                     f'<td><code>{esc(f["rule_id"])}</code></td>'
                     f'<td>{esc(f.get("title",""))}</td>'
                     f'<td><code>{esc(f.get("evidence",""))}</code></td>'
@@ -193,21 +234,20 @@ a.exploit:hover{{background:#9f2d3a}}
         parts.append('<div class="card"><h2>Executed Tools</h2>')
         for t in executed:
             n = len(t["findings"])
-            badge_color = "#27ae60" if n == 0 else "#e67e22"
+            badge_class = "clear" if n == 0 else "found"
             parts.append(f'<h3>{esc(t["tool"])} '
-                         f'<span class="badge" style="background:{badge_color}">{n} findings</span></h3>')
+                         f'<span class="badge {badge_class}">{n} findings</span></h3>')
             parts.append(f'<pre>{esc(t["output"])}</pre>')
         parts.append('</div>')
 
         # ---------- Skipped tools ----------
         if skipped:
             parts.append('<div class="card"><h2>Skipped Tools</h2>'
-                         '<p style="font-size:14px;color:#666">'
-                         'These analyzers require a live ADB device or Frida server '
+                         '<p class="methodology">These analyzers require a live ADB device or Frida server '
                          'and did not run in this session.</p>')
             for t in skipped:
                 parts.append(f'<h3>{esc(t["tool"])} '
-                             f'<span class="badge" style="background:#95a5a6">SKIPPED</span></h3>'
+                             f'<span class="badge skip">SKIPPED</span></h3>'
                              f'<pre>{esc(t["output"])}</pre>')
             parts.append('</div>')
 

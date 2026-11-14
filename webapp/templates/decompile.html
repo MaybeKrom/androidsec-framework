@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Decompile — androsec{% endblock %}
-{% block body_class %}{{ 'page-scan' if job.status != 'done' else '' }}{% endblock %}
+{% block body_class %}page-decompile{{ ' page-scan' if job.status != 'done' else '' }}{% endblock %}
 {% block body %}
   <header class="page-head">
     <div>

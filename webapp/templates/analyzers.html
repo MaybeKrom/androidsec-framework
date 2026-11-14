@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Analyzers — androsec{% endblock %}
-{% block body_class %}page-assess{% endblock %}
+{% block body_class %}page-assess page-analyzers{% endblock %}
 {% block body %}
   <header class="page-head">
     <div>
@@ -28,52 +28,58 @@
   <form id="scan-form" action="{{ url_for('start_scan') }}" method="post">
     <input type="hidden" name="apk" value="{{ apk.key }}">
 
-    <section class="card">
-      <div class="section-head spread">
-        <div>
-          <h2>Static <span class="count">{{ static_analyzers|length }}</span></h2>
-          <p class="muted">These checks read the APK only. <code>cloud_checker</code> may contact a Firebase host named in the app.</p>
+    <div class="analyzer-split">
+      <section class="card band band-static">
+        <div class="section-head">
+          <p class="band-kicker">File only</p>
+          <div class="section-head spread">
+            <div>
+              <h2>Static <span class="count">{{ static_analyzers|length }}</span></h2>
+              <p class="muted">These checks read the APK only. <code>cloud_checker</code> may contact a Firebase host named in the app.</p>
+            </div>
+            <div class="btn-row">
+              <button type="button" id="select-static">Select static</button>
+              <button type="button" id="select-all">Select all</button>
+              <button type="button" id="clear-all">Clear</button>
+            </div>
+          </div>
         </div>
-        <div class="btn-row">
-          <button type="button" id="select-static">Select static</button>
-          <button type="button" id="select-all">Select all</button>
-          <button type="button" id="clear-all">Clear</button>
-        </div>
-      </div>
-      <ul class="tool-grid">
-        {% for analyzer in static_analyzers %}
-          <li>
-            <label class="tool-card">
-              <input type="checkbox" name="analyzers" value="{{ analyzer.id }}" data-kind="static" checked>
-              <span class="tool-copy">
-                <code>{{ analyzer.id }}</code>
-                <span>{{ analyzer.description }}</span>
-              </span>
-            </label>
-          </li>
-        {% endfor %}
-      </ul>
-    </section>
+        <ul class="tool-grid">
+          {% for analyzer in static_analyzers %}
+            <li>
+              <label class="tool-card">
+                <input type="checkbox" name="analyzers" value="{{ analyzer.id }}" data-kind="static" checked>
+                <span class="tool-copy">
+                  <code>{{ analyzer.id }}</code>
+                  <span>{{ analyzer.description }}</span>
+                </span>
+              </label>
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
 
-    <section class="card">
-      <div class="section-head">
-        <h2>Dynamic <span class="count">{{ dynamic_analyzers|length }}</span></h2>
-        <p class="muted">Left off until you choose them. A dynamic scan opens the device step and does not start an emulator.</p>
-      </div>
-      <ul class="tool-grid">
-        {% for analyzer in dynamic_analyzers %}
-          <li>
-            <label class="tool-card">
-              <input type="checkbox" name="analyzers" value="{{ analyzer.id }}" data-kind="dynamic">
-              <span class="tool-copy">
-                <code>{{ analyzer.id }}</code>
-                <span>{{ analyzer.description }}</span>
-              </span>
-            </label>
-          </li>
-        {% endfor %}
-      </ul>
-    </section>
+      <section class="card band band-dynamic">
+        <div class="section-head">
+          <p class="band-kicker">Device required</p>
+          <h2>Dynamic <span class="count">{{ dynamic_analyzers|length }}</span></h2>
+          <p class="muted">Left off until you choose them. A dynamic scan opens the device step and does not start an emulator.</p>
+        </div>
+        <ul class="tool-grid">
+          {% for analyzer in dynamic_analyzers %}
+            <li>
+              <label class="tool-card">
+                <input type="checkbox" name="analyzers" value="{{ analyzer.id }}" data-kind="dynamic">
+                <span class="tool-copy">
+                  <code>{{ analyzer.id }}</code>
+                  <span>{{ analyzer.description }}</span>
+                </span>
+              </label>
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+    </div>
 
     <div class="launch">
       <div>

@@ -210,12 +210,13 @@ def _report_path(filename):
 def _pdf_bar(pdf_name):
     return (
         '<div id="androsec-pdf" style="position:sticky;top:0;z-index:30;display:flex;'
-        'justify-content:space-between;align-items:center;gap:12px;padding:12px 18px;'
-        'background:#070B14;color:#F5F8FF;font-family:ui-sans-serif,Segoe UI,sans-serif;">'
-        '<strong style="letter-spacing:-0.03em">andro<span style="color:#B8FF30">sec</span></strong>'
+        'justify-content:space-between;align-items:center;gap:16px;padding:14px 28px;'
+        'background:#070B14;color:#F5F8FF;border-bottom:1px solid #2B3A55;'
+        'font-family:Space Grotesk,IBM Plex Sans,sans-serif;">'
+        '<img src="/static/androsec-logo.png" alt="androsec" height="28" style="display:block">'
         f'<a href="{escape(pdf_name)}" style="display:inline-flex;align-items:center;'
-        'padding:8px 14px;border:1px solid #B8FF30;border-radius:10px;color:#B8FF30;'
-        'font-weight:700;text-decoration:none;background:#0A1020;">Download PDF</a></div>'
+        'padding:8px 14px;border:1px solid #B8FF3D;border-radius:4px;color:#070B14;'
+        'font-weight:600;text-decoration:none;background:#B8FF3D;">Download PDF</a></div>'
     )
 
 

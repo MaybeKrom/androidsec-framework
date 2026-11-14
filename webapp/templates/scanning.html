@@ -18,15 +18,19 @@
 
   <section class="card scan-board" id="scan-panel">
     <div class="scan-summary">
-      <p class="scan-target">{{ job.apk_name }}</p>
-      <p class="scan-message" id="message">{{ job.message }}</p>
+      <div class="scan-meter">
+        <strong id="progress-label">{{ percent }}%</strong>
+        <div class="scan-copy">
+          <p class="scan-target">{{ job.apk_name }}</p>
+          <p class="scan-message" id="message">{{ job.message }}</p>
+          <p class="elapsed" id="elapsed">00:00</p>
+        </div>
+      </div>
       <div class="progress-row">
         <div class="progress-track" id="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ percent }}" aria-label="Analyzers completed">
           <div class="progress-fill" id="progress-fill" style="width: {{ percent }}%"></div>
         </div>
-        <strong id="progress-label">{{ percent }}%</strong>
       </div>
-      <p class="elapsed" id="elapsed">00:00</p>
     </div>
 
     <ul class="progress-list" id="progress-list">

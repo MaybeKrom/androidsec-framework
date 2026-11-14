@@ -125,11 +125,41 @@ class ConsolidatePrecisionTests(unittest.TestCase):
         self.assertNotIn("COMPONENT_PROVIDER_AUTHORITY", rules)
         self.assertNotIn("INTENT_EXPORTED_PROVIDER", rules)
 
+    def test_intent_unprotected_dropped_when_component_fqcn_matches(self):
+        out = consolidate_findings([
+            {
+                "rule_id": "COMPONENT_ACTIVITY",
+                "evidence": "com.android.insecurebankv2.PostLogin (permission=none)",
+                "severity": "High",
+            },
+            {
+                "rule_id": "INTENT_EXPORTED_UNPROTECTED",
+                "evidence": "activity:com.android.insecurebankv2.PostLogin actions=['x']",
+                "severity": "High",
+            },
+        ])
+        rules = [f["rule_id"] for f in out]
+        self.assertIn("COMPONENT_ACTIVITY", rules)
+        self.assertNotIn("INTENT_EXPORTED_UNPROTECTED", rules)
+
+    def test_crypto_ecb_preferred_over_transform(self):
+        out = consolidate_findings([
+            {"rule_id": "CODE_WEAK_CRYPTO_ECB", "evidence": "AES/ECB"},
+            {"rule_id": "CRYPTO_WEAK_TRANSFORM", "evidence": "AES/ECB/PKCS5"},
+        ])
+        rules = [f["rule_id"] for f in out]
+        self.assertIn("CODE_WEAK_CRYPTO_ECB", rules)
+        self.assertNotIn("CRYPTO_WEAK_TRANSFORM", rules)
+
 
 class SecretAnnotateTests(unittest.TestCase):
     def test_lab_placeholder_annotated(self):
         text = secret_detector._annotate_secret("SECRET_AWS_KEY", "AKIAIOSFODNN7EXAMPLE")
         self.assertIn("placeholder", text.lower())
+
+    def test_keypad_blob_filtered(self):
+        self.assertTrue(secret_detector._is_keypad_or_digit_noise("012301230123012301230123"))
+        self.assertFalse(secret_detector._is_keypad_or_digit_noise("a1b2c3d4e5f6a1b2c3d4e5f6"))
 
 
 class ExploitGroundingPrecisionTests(unittest.TestCase):

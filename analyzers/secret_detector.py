@@ -48,6 +48,19 @@ def _annotate_secret(rule: str, evidence: str) -> str:
     return f"{evidence} [format-only — not validated against AWS]"
 
 
+def _is_keypad_or_digit_noise(blob: str) -> bool:
+    """Filter digit keypad / low-alphabet hex blobs (e.g. 01230120…)."""
+    cleaned = re.sub(r"[^0-9a-fA-F]", "", blob or "")
+    if len(cleaned) < 16:
+        return False
+    digits = sum(1 for ch in cleaned if ch.isdigit())
+    if digits / len(cleaned) >= 0.85:
+        return True
+    if len(set(cleaned.lower())) <= 4 and digits / len(cleaned) >= 0.5:
+        return True
+    return False
+
+
 def _strings_from_bytes(data, min_len=6):
     """Extract printable ASCII strings from a binary blob."""
     out, cur = [], bytearray()
@@ -101,6 +114,9 @@ def run(ctx):
 
                 for m in HEX_BLOB.finditer(s):
                     blob = m.group(0)
+                    if _is_keypad_or_digit_noise(blob):
+                        L.append(f"  [-] skipped keypad/digit blob: {_mask(blob)}")
+                        continue
                     L.append(f"  [?] Possible hex blob: {_mask(blob)}")
                     _emit("SECRET_OBFUSCATED_BLOB", _mask(blob))
         except Exception:

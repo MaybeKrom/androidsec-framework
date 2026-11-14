@@ -43,6 +43,25 @@ class TestRiskEngine(unittest.TestCase):
         summary = self.engine.compute(findings)
         self.assertEqual(summary["score"], 50)
 
+    def test_high_soft_cap_and_weights(self):
+        # High weight=7; first 3 full, 4th half → 7*3 + 3.5 = 24.5 → 24 or 25
+        findings = [{"severity": "High", "confidence": "High"} for _ in range(4)]
+        summary = self.engine.compute(findings)
+        self.assertEqual(summary["score"], 24)
+        self.assertLess(summary["score"], 7 * 4)
+
+    def test_ibv2_style_stack_does_not_auto_saturate(self):
+        # One Critical + two High + many Medium must stay under 100 after soft caps.
+        findings = (
+            [{"severity": "Critical", "confidence": "High"}]
+            + [{"severity": "High", "confidence": "High"} for _ in range(2)]
+            + [{"severity": "Medium", "confidence": "High"} for _ in range(13)]
+            + [{"severity": "Info", "confidence": "High"} for _ in range(20)]
+        )
+        summary = self.engine.compute(findings)
+        self.assertLess(summary["score"], 100)
+        self.assertGreaterEqual(summary["score"], 40)
+
     def test_risk_levels(self):
         pass_summary = self.engine.compute([])
         self.assertEqual(pass_summary["level"], "PASS")
@@ -51,20 +70,21 @@ class TestRiskEngine(unittest.TestCase):
         self.assertEqual(low_summary["level"], "LOW")
         self.assertEqual(low_summary["score"], 1)
 
-        # 2 High (8+8=16) → MEDIUM
+        # 3 High (7+7+7=21) → MEDIUM
         med_summary = self.engine.compute([
+            {"severity": "High", "confidence": "High"},
             {"severity": "High", "confidence": "High"},
             {"severity": "High", "confidence": "High"},
         ])
         self.assertEqual(med_summary["level"], "MEDIUM")
-        self.assertEqual(med_summary["score"], 16)
+        self.assertEqual(med_summary["score"], 21)
 
-        # 5 High = 40 → HIGH
+        # 5 High = 7*3 + 3.5*2 = 28 → MEDIUM
         high_summary = self.engine.compute(
             [{"severity": "High", "confidence": "High"} for _ in range(5)]
         )
-        self.assertEqual(high_summary["level"], "HIGH")
-        self.assertEqual(high_summary["score"], 40)
+        self.assertEqual(high_summary["level"], "MEDIUM")
+        self.assertEqual(high_summary["score"], 28)
 
         # 4 Critical with soft-cap: 20+20+10+10 = 60 → CRITICAL
         crit_summary = self.engine.compute(

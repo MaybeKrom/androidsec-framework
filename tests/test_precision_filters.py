@@ -131,6 +131,19 @@ class SecretAnnotateTests(unittest.TestCase):
         text = secret_detector._annotate_secret("SECRET_AWS_KEY", "AKIAIOSFODNN7EXAMPLE")
         self.assertIn("placeholder", text.lower())
 
+    def test_keypad_digit_blobs_filtered(self):
+        ctx = _FakeCtx([
+            "01230120022455012623010202",
+            "01360240043788015936020505",
+            "deadbeefcafebabe0123456789ab",
+        ])
+        result = secret_detector.run(ctx)
+        evidences = [f["evidence"] for f in result["findings"] if f["rule_id"] == "SECRET_OBFUSCATED_BLOB"]
+        joined = " ".join(evidences)
+        self.assertNotIn("01230120022455012623010202", joined)
+        self.assertNotIn("01360240043788015936020505", joined)
+        self.assertTrue(any("deadbeef" in e.lower() for e in evidences))
+
 
 class ExploitGroundingPrecisionTests(unittest.TestCase):
     def test_hostname_verifier_is_network_tls(self):
@@ -141,6 +154,35 @@ class ExploitGroundingPrecisionTests(unittest.TestCase):
         provider = {"rule_id": "COMPONENT_PROVIDER", "severity": "High", "evidence": "content://x"}
         host = {"rule_id": "CODE_HOSTNAME_VERIFIER", "severity": "High", "evidence": "ALLOW_ALL"}
         self.assertGreater(g.exploit_priority(provider), g.exploit_priority(host))
+
+    def test_provider_outranks_trust_all_even_when_critical_tls(self):
+        provider = {"rule_id": "COMPONENT_PROVIDER", "severity": "Medium", "evidence": "content://com.htbridge.pivaa"}
+        trust = {"rule_id": "CODE_TRUST_ALL_CERTS", "severity": "Critical", "evidence": "trustAllCerts"}
+        self.assertFalse(g.is_auto_exploitable(trust))
+        self.assertTrue(g.is_auto_exploitable(provider))
+        self.assertGreater(g.exploit_priority(provider), g.exploit_priority(trust))
+
+    def test_tls_baseline_does_not_confirm(self):
+        loaded = {
+            "metadata": {"package": "com.htbridge.pivaa"},
+            "summary": {},
+            "finding": {
+                "rule_id": "CODE_TRUST_ALL_CERTS",
+                "title": "Insecure TrustManager",
+                "severity": "High",
+                "evidence": "trustAllCerts",
+            },
+        }
+        steps = g.finding_baseline_steps(loaded)
+        evaluation = g.evaluate_evidence(
+            loaded,
+            [{"step": s["step"], "command": s["command"],
+              "result_summary": "SKIP network_tls auto-exploit for com.htbridge.pivaa: "
+                                "lab HTTPS interception tooling required"}
+             for s in steps],
+            [],
+        )
+        self.assertEqual(evaluation["level"], "UNCONFIRMED")
 
     def test_jvm_descriptor_not_proof_token(self):
         finding = {

@@ -72,7 +72,7 @@ def render_html(report):
     parts.append(_findings_table(findings))
     parts.append(_finding_details(findings))
     parts.append(_tools_section(executed, skipped))
-    parts.append(_closing())
+    # Disclaimer lives on the cover only — do not force a lone last-page copy.
     parts.append("</main></body></html>")
     return "".join(parts)
 
@@ -150,6 +150,8 @@ h2 {{
 h2.break {{ break-before: page; }}
 main > section {{ break-before: page; }}
 main > section:first-child {{ break-before: auto; }}
+/* Exception: short disclaimer must not sit alone on its own page. */
+main > section.closing {{ break-before: auto; page-break-before: auto; }}
 h3 {{ margin: 0; font-size: 12pt; break-after: avoid; }}
 h4 {{
   margin: 8px 0 2px;

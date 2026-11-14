@@ -602,10 +602,10 @@
     "recommendation": "Run in lab to confirm access."
   },
   "INTENT_EXPORTED_UNPROTECTED": {
-    "severity": "High",
+    "severity": "Medium",
     "confidence": "High",
     "title": "Unprotected exported component",
-    "description": "Exported without permission.",
+    "description": "Exported without permission. Prefer COMPONENT_* rows when both exist — this rule is a fallback surface marker.",
     "recommendation": "Add permission or disable export."
   },
   "INTENT_ACTIVITY_POC": {

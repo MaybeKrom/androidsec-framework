@@ -231,7 +231,8 @@ class TestPdfReport(unittest.TestCase):
             "overview. It is not guaranteed to be 100% accurate. Some vulnerabilities may "
             "not have been detected.",
         )
-        self.assertEqual(document.count(DISCLAIMER), 2)
+        self.assertEqual(document.count(DISCLAIMER), 1)
+        self.assertIn("main > section.closing", document)
         self.assertIn("androsec", document)
         self.assertIn("Executive summary", document)
         self.assertIn(">Vulnerability</th>", document)

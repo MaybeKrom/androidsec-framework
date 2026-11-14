@@ -28,6 +28,25 @@ def _mask(s):
     return s if len(s) <= 60 else s[:57] + "..."
 
 
+def _is_keypad_or_digit_noise(blob: str) -> bool:
+    """True for digit-only / low-entropy blobs that look like keypad layouts, not secrets.
+
+    PIVAA-style false positives: ``01230120022455012623010202`` — all digits, no a-f.
+    Real hex keys (UnCrackable-class) usually include at least one a-f letter.
+    """
+    if not blob:
+        return True
+    if re.fullmatch(r"[0-9]+", blob):
+        return True
+    # Hex alphabet but zero letters a-f → still digit-only in practice.
+    if re.fullmatch(r"[0-9a-fA-F]+", blob) and not re.search(r"[a-fA-F]", blob):
+        return True
+    unique = len(set(blob.lower()))
+    if unique <= 4 and len(blob) >= 24:
+        return True
+    return False
+
+
 # Well-known AWS docs / lab placeholders — not live credentials.
 _LAB_AWS_KEYS = {
     "AKIAIOSFODNN7EXAMPLE",
@@ -101,6 +120,8 @@ def run(ctx):
 
                 for m in HEX_BLOB.finditer(s):
                     blob = m.group(0)
+                    if _is_keypad_or_digit_noise(blob):
+                        continue
                     L.append(f"  [?] Possible hex blob: {_mask(blob)}")
                     _emit("SECRET_OBFUSCATED_BLOB", _mask(blob))
         except Exception:

@@ -217,7 +217,8 @@ python app.py
 - Library DEX noise (OkHttp HostnameVerifier type refs, bare `checkServerTrusted`) is filtered.  
 - Logcat scanning prefers **PID / package** scope and blocks UIAutomator dump tags.  
 - Exploitation PDFs are **single-finding** reports (not the full-app scorecard).  
-- Exploitation covers show a **qualitative CVSS band** only — not a fake decimal / vector.  
+- Exploitation covers show **Severity + `CVSS X.X`** (severity-mapped estimate; not a full vector).  
+- AI exploit ranking prefers deterministic ADB surfaces (provider / WebView / run-as) over TrustAll/TLS.  
 - Skipped Frida/ADB tools are called out as **reduced dynamic coverage**.
 
 ---

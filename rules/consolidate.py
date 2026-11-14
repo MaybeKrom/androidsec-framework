@@ -1,5 +1,7 @@
 """Collapse noisy duplicate findings so reports stay readable."""
 
+import re
+
 # Pattern scanners often hit the same class of issue many times with slightly
 # different evidence strings. Keep one row per rule for these.
 _COLLAPSE_BY_RULE = {
@@ -44,7 +46,39 @@ _EQUIVALENT_GROUPS = (
     ("COMPONENT_PROVIDER", "INTENT_EXPORTED_PROVIDER"),
     # TrustAll: prefer static_code behavioral hit over ssl_pinning duplicate.
     ("CODE_TRUST_ALL_CERTS", "SSL_TRUST_ALL"),
+    # Same AES/ECB (or DES) string from static_code + crypto_key analyzer.
+    ("CODE_WEAK_CRYPTO_ECB", "CRYPTO_WEAK_TRANSFORM"),
+    ("CODE_WEAK_CRYPTO_DES", "CRYPTO_WEAK_TRANSFORM"),
 )
+
+_COMPONENT_RULES = (
+    "COMPONENT_ACTIVITY",
+    "COMPONENT_SERVICE",
+    "COMPONENT_RECEIVER",
+    "COMPONENT_PROVIDER",
+    "COMPONENT_LAUNCHER",
+)
+
+_INTENT_UNPROTECTED = "INTENT_EXPORTED_UNPROTECTED"
+
+_INTENT_PREFIX_RE = re.compile(
+    r"^(?:activity|activity-alias|service|receiver|provider)\s*:\s*",
+    re.IGNORECASE,
+)
+_FQCN_RE = re.compile(r"\b([A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]+)+)\b")
+
+
+def _component_key(evidence: str) -> str:
+    """Normalize evidence to a comparable component FQCN when possible."""
+    text = str(evidence or "").strip()
+    text = _INTENT_PREFIX_RE.sub("", text)
+    # Drop trailing actions=/permission=/authorities= payloads.
+    text = re.split(r"\s+(?:actions|permission|authorities|read|write)\s*=", text, maxsplit=1)[0]
+    text = text.split("(")[0].strip()
+    match = _FQCN_RE.search(text)
+    if match:
+        return match.group(1).lower()
+    return text.lower()
 
 
 def consolidate_findings(findings: list) -> list:
@@ -76,14 +110,32 @@ def consolidate_findings(findings: list) -> list:
 
     # Drop secondary duplicates if both exist.
     present = {f.get("rule_id") for f in out}
-    drop = set()
+    drop_rules = set()
     for preferred, secondary in _EQUIVALENT_GROUPS:
         if preferred in present and secondary in present:
-            drop.add(secondary)
+            drop_rules.add(secondary)
     # If only INTENT_EXPORTED_PROVIDER exists without COMPONENT_PROVIDER, keep it.
     # If COMPONENT_PROVIDER_AUTHORITY exists without COMPONENT_PROVIDER, keep authority.
-    if drop:
-        out = [f for f in out if f.get("rule_id") not in drop]
+    if drop_rules:
+        out = [f for f in out if f.get("rule_id") not in drop_rules]
+
+    # COMPONENT_* is canonical; INTENT_EXPORTED_UNPROTECTED restates the same surface.
+    # Keep Info PoC rows (INTENT_ACTIVITY_POC / INTENT_PROVIDER_POC).
+    component_names = {
+        _component_key(f.get("evidence") or "")
+        for f in out
+        if f.get("rule_id") in _COMPONENT_RULES
+    }
+    component_names.discard("")
+    if component_names:
+        filtered = []
+        for f in out:
+            if f.get("rule_id") == _INTENT_UNPROTECTED:
+                name = _component_key(f.get("evidence") or "")
+                if name and name in component_names:
+                    continue
+            filtered.append(f)
+        out = filtered
 
     for item in out:
         item.pop("_collapse_count", None)

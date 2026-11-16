@@ -21,6 +21,9 @@ Thumbs.db
 # Output reports (regenerated on every scan)
 output_reports/
 
+# Per-scan assessment + exploitation evidence bundles
+scans/
+
 # APKs uploaded through the web UI, and cached package info
 webapp/uploads/*.apk
 webapp/uploads/*.part

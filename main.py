@@ -10,7 +10,13 @@ from datetime import datetime
 from analyzers.utils import sha256_file, fmt_size
 from context import AppContext
 from engine.risk_engine import RiskEngine
-from reporter.report_generator import ReportGenerator
+from reporter.report_generator import ReportGenerator, sorted_findings
+from reporter.scan_store import (
+    create_scan_dir,
+    default_legacy_reports_root,
+    default_scans_root,
+    write_assessment_bundle,
+)
 from rules.consolidate import consolidate_findings
 from rules.owasp_mapper import OWASPMapper
 from rules.rules_engine import RulesEngine
@@ -72,8 +78,16 @@ def _notify(on_progress, tool_id, message):
 
 
 def run_scan(apk_path, output_dir=None, only=None, skip=None,
-             static_only=False, start_adb=True, on_progress=None):
+             static_only=False, start_adb=True, on_progress=None,
+             legacy_reports_dir=None):
     """Run analyzers and write the HTML and JSON reports.
+
+    Reports land in a per-scan folder under ``output_dir`` (default: ``scans/``)::
+
+        scans/scan_YYYYMMDD_HHMMSS_<AppName>/assessment_report.{html,json}
+
+    Legacy basenames are dual-written into ``legacy_reports_dir`` (default:
+    ``output_reports/``) so the web UI Exploit links keep working.
 
     only: analyzer ids to run. None or an empty collection runs every analyzer
     that is not skipped. skip: analyzer ids to skip. static_only also skips
@@ -89,10 +103,33 @@ def run_scan(apk_path, output_dir=None, only=None, skip=None,
         skip_set.update(DYNAMIC_ANALYZERS)
     only_set = set(only or [])
 
-    out_dir = output_dir or os.path.join(BASE, "output_reports")
-    os.makedirs(out_dir, exist_ok=True)
-    # Optional analyzers (e.g. mitmproxy live dump) write under the report dir.
-    os.environ["ANDROSEC_OUTPUT_DIR"] = out_dir
+    scans_root = output_dir or default_scans_root()
+    os.makedirs(scans_root, exist_ok=True)
+    flat_reports = (
+        legacy_reports_dir
+        if legacy_reports_dir is not None
+        else default_legacy_reports_root()
+    )
+
+    # Lightweight APK metadata first so the scan folder name is meaningful and
+    # analyzer dumps (mitm, etc.) land under evidence/ from the start.
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    ctx = AppContext(apk)
+    apk_obj = ctx.apk
+    pkg_name = _safe_meta(apk_obj, "get_package")
+    app_name = _safe_meta(apk_obj, "get_app_name", pkg_name)
+
+    scan = create_scan_dir(
+        scans_root,
+        stamp,
+        app_name,
+        package=pkg_name,
+        apk_basename=os.path.basename(apk),
+        sha256=ctx.sha256,
+    )
+    evidence_dir = scan["evidence_dir"]
+    # Optional analyzers (e.g. mitmproxy live dump) write under evidence/.
+    os.environ["ANDROSEC_OUTPUT_DIR"] = evidence_dir
 
     if start_adb and not static_only and shutil.which("adb"):
         try: subprocess.run(["adb", "start-server"], capture_output=True, timeout=10)
@@ -100,9 +137,9 @@ def run_scan(apk_path, output_dir=None, only=None, skip=None,
 
     print("=" * 60)
     print(f"[*] androidsec scanning: {apk}")
+    print(f"[*] Scan folder: {scan['scan_dir']}")
     print("=" * 60)
 
-    ctx = AppContext(apk)
     tool_results = []
 
     for tool_id, mod_path, _desc in ANALYZERS:
@@ -134,10 +171,6 @@ def run_scan(apk_path, output_dir=None, only=None, skip=None,
     findings = consolidate_findings(findings)
     summary = RiskEngine().compute(findings)
 
-    apk_obj = ctx.apk
-    pkg_name = _safe_meta(apk_obj, "get_package")
-    app_name = _safe_meta(apk_obj, "get_app_name", pkg_name)
-
     target_sdk = "Unknown"
     min_sdk = "Unknown"
 
@@ -154,6 +187,7 @@ def run_scan(apk_path, output_dir=None, only=None, skip=None,
     if min_sdk == "Unknown":
         min_sdk = _safe_meta(apk_obj, "get_min_sdk_version")
 
+    scan_rel = os.path.relpath(scan["scan_dir"], BASE)
     metadata = {
         "target":          apk,
         "target_basename": os.path.basename(apk),
@@ -165,24 +199,35 @@ def run_scan(apk_path, output_dir=None, only=None, skip=None,
         "version_name":    _safe_meta(apk_obj, "get_androidversion_name"),
         "min_sdk":         min_sdk,
         "target_sdk":      target_sdk,
+        "scan_id":         scan["scan_id"],
+        "scan_dir":        scan_rel.replace("\\", "/"),
+        "report_stamp":    stamp,
     }
 
     reporter = ReportGenerator(metadata, tool_results, findings, summary)
-    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    html_path = os.path.join(out_dir, f"security_report_{stamp}.html")
-    json_path = os.path.join(out_dir, f"security_report_{stamp}.json")
-    reporter.save_html(html_path)
-    reporter.save_json(json_path)
+    paths = write_assessment_bundle(
+        scan["scan_dir"],
+        stamp,
+        reporter,
+        sorted_findings_list=sorted_findings(findings),
+        legacy_reports_dir=flat_reports,
+    )
+    html_path = paths["html_path"]
+    json_path = paths["json_path"]
 
     print("=" * 60)
     print(f"[+] Risk Level : {summary['level']} ({summary['score']}/100)")
     print(f"[+] Findings   : {summary['counts']}")
+    print(f"[+] Scan       : {scan['scan_dir']}")
     print(f"[+] HTML       : {html_path}")
     print(f"[+] JSON       : {json_path}")
 
     return {
         "html_path": html_path,
         "json_path": json_path,
+        "scan_id": scan["scan_id"],
+        "scan_dir": scan["scan_dir"],
+        "evidence_dir": evidence_dir,
         "summary": summary,
         "metadata": metadata,
     }
@@ -200,7 +245,12 @@ def main():
     parser.add_argument("--static-only", action="store_true", help="Run only static analysis modules (skip ADB/Frida/logcat).")
     parser.add_argument("--no-gui", action="store_true", help="Skip the analyzer picker and run from the command line.")
     parser.add_argument("--no-adb", action="store_true", help="Do not attempt to start or connect to ADB server.")
-    parser.add_argument("-o", "--output", default=os.path.join(BASE, "output_reports"), help="Output directory for reports (default: output_reports/).")
+    parser.add_argument(
+        "-o", "--output",
+        default=os.path.join(BASE, "scans"),
+        help="Parent directory for per-scan folders (default: scans/). "
+             "Each run creates scan_YYYYMMDD_HHMMSS_<App>/ with assessment + evidence.",
+    )
     parser.add_argument("--list-analyzers", action="store_true", help="List all registered analyzers and exit.")
     parser.add_argument("-v", "--version", action="version", version="androidsec 1.0.0")
 

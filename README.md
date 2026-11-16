@@ -34,8 +34,8 @@ It is designed for **authorized lab environments** and intentionally vulnerable 
 |--------|----------------|
 | **Static analysis** | Manifest, components, secrets, crypto/SQL/WebView, network/NSC, SBOM, intent abuse, native libs, lab challenge mapping, attack-chain correlation |
 | **Dynamic analysis** | ADB readiness, runtime crashes, run-as storage extraction, UIAutomator menus, Frida hooks, logcat secret detection |
-| **AI exploitation** | Grounded PoC planning → ADB/Frida execution → Python evidence gate → single-finding exploitation PDF |
-| **Reporting** | HTML · JSON · WeasyPrint PDF (cover, TOC, CVSS estimate, section page-breaks) |
+| **AI exploitation** | Claude-recommended grounded PoC planning → ADB/Frida execution → Python evidence gate (strong/weak/manual) → single-finding exploitation PDF |
+| **Reporting** | HTML · JSON · WeasyPrint PDF (severity-ordered findings, cover, TOC, `CVSS X.X`, section page-breaks) |
 
 ---
 
@@ -84,9 +84,10 @@ Security assessment PDFs and AI exploitation reports are produced locally under 
 - Logcat secrets (Luhn-checked PANs; tombstone noise filtered)  
 
 ### AI exploitation (web UI)
-- Default provider: **Anthropic Claude** (`claude-sonnet-5`)  
-- Also: OpenAI, Gemini, OpenRouter, DeepSeek, xAI, custom OpenAI-compatible  
-- Evidence-gated confirmation: `CONFIRMED` · `PARTIAL` · `UNCONFIRMED`  
+- **Recommended provider:** Anthropic Claude (`claude-sonnet-5`) — preferred for lab PoC planning; also OpenAI, Gemini, OpenRouter, DeepSeek, xAI, custom OpenAI-compatible  
+- Anthropic requests omit `temperature` / `top_p` / `top_k` (effort + prompts control caution)  
+- Lab-app knowledge (DIVA, InsecureBankv2, AndroGoat, …) is **HINT-only** — every claim still needs **this run’s** live stdout  
+- Evidence-gated confirmation: `CONFIRMED` · `PARTIAL` · `UNCONFIRMED`, with strength `strong` · `weak` · `needs_manual_verification`  
 - **BYOK**: paste an API key in the Exploit form — used only for that HTTP request (Authorization header). Keys are **not** written to reports, prompts, git, or server logs.  
 - **What the LLM sees**: finding JSON (rule/title/severity/evidence/recommendation), package metadata, device model/serial, and prior step stdout. The APK binary itself is **not** uploaded.  
 
@@ -209,6 +210,7 @@ python app.py
 
 ## Reporting notes
 
+- Assessment HTML/PDF findings are ordered **Critical → High → Medium → Low → Info** (then exploit priority within a band).  
 - Noisy duplicate rules are **collapsed** for readability.  
 - Cleartext / provider / TrustAll overlaps from multiple tools are **deduplicated**.  
 - Correlator rows are **informational attack-chain notes** (do not double-count score).  
@@ -218,6 +220,7 @@ python app.py
 - Logcat scanning prefers **PID / package** scope and blocks UIAutomator dump tags.  
 - Exploitation PDFs are **single-finding** reports (not the full-app scorecard).  
 - Exploitation covers show **Severity** plus a severity-mapped **`CVSS X.X`** estimate (not a full vector).  
+- Exploit PDF drops the duplicate structured Evidence table row; write-up + Captured evidence remain.  
 - Skipped Frida/ADB tools are called out as **reduced dynamic coverage**.
 
 ---

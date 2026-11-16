@@ -231,6 +231,19 @@ On live capture the analyzer runs `settings put global http_proxy <host>:<port>`
 
 Live flow dumps land under the scan report/output directory (`ANDROSEC_MITM_OUT` / `ANDROSEC_OUTPUT_DIR` / `output_reports`). Failures skip network capture only — they never fail the whole scan. Disabled analyzer → no ADB proxy changes.
 
+### Practical mitmproxy addons
+
+Live capture auto-loads `extra/mitmproxy_addons/loader.py` via `mitmdump -s` (optional; offline dumps still work without addons). Addons emit JSON lines consumed into the existing `MITM_*` findings pipeline:
+
+| Addon | Role |
+|-------|------|
+| `sensitive_data.py` | Keywords `password` / `token` / `secret` / `api_key` / `authorization` / `bearer` in URLs, headers, bodies |
+| `cleartext_http.py` | Flags plain HTTP (not HTTPS) |
+| `api_endpoint_logger.py` | Unique `method + host + path` inventory |
+| `auth_header_capture.py` | Extracts `Authorization` and `Cookie` when present |
+
+Standalone: `mitmdump -s extra/mitmproxy_addons/sensitive_data.py` (or `loader.py` for all). Lab / KSU training apps only.
+
 ### Usage
 
 ```bash
@@ -238,7 +251,7 @@ Live flow dumps land under the scan report/output directory (`ANDROSEC_MITM_OUT`
 export ANDROSEC_MITM_DUMP=/path/to/flows.json
 python main.py target.apk --only mitmproxy --no-adb
 
-# Live short capture: auto proxy set/clear + mitmdump (needs device)
+# Live short capture: auto proxy set/clear + mitmdump -s addons (needs device)
 python main.py target.apk --only mitmproxy frida network ssl_pinning
 ```
 

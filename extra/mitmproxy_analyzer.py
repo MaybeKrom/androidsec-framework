@@ -2,11 +2,14 @@
 
 Capture modes (first match wins):
 1. Offline: parse ``ANDROSEC_MITM_DUMP`` (JSON flow list, HAR, or NDJSON).
-2. Live (best-effort): if ``mitmdump`` is on PATH and a device is ready, briefly
-   set the device HTTP proxy, launch the package, dump flows, then clear proxy.
+2. Live (best-effort): if a device is ready, automatically set the device
+   global HTTP proxy via ADB, start ``mitmdump`` when needed, launch the
+   package briefly, dump flows under the report/output dir, then always clear
+   the proxy in ``finally``.
 3. Otherwise skip — never fails the whole scan.
 
-Lab-only: Genymotion / emulator / rooted phone with mitmproxy CA installed.
+Lab-only: Genymotion / emulator / rooted phone with mitmproxy CA installed
+(CA install remains a one-time lab setup; proxy routing is automated).
 """
 
 from __future__ import annotations
@@ -15,6 +18,7 @@ import json
 import os
 import re
 import shutil
+import socket
 import subprocess
 import tempfile
 import time
@@ -30,6 +34,7 @@ _SENSITIVE_BODY = re.compile(
 )
 _DEFAULT_PORT = int(os.environ.get("ANDROSEC_MITM_PORT", "8080") or "8080")
 _LIVE_SECONDS = int(os.environ.get("ANDROSEC_MITM_SECONDS", "12") or "12")
+_PROXY_CLEAR_VALUE = ":0"
 
 
 def _clip(text: str, n: int = 220) -> str:
@@ -260,53 +265,144 @@ def _load_dump_text(path: str) -> str:
         return handle.read()
 
 
-def _emulator_proxy_host() -> str:
-    """Best-effort host IP as seen from the Android emulator/device."""
+def _adb_cmd(*args: str, timeout: int = 10) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        ["adb", *args],
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+    )
+
+
+def _adb_getprop(prop: str) -> str:
+    try:
+        result = _adb_cmd("shell", "getprop", prop, timeout=5)
+        return (result.stdout or "").strip()
+    except Exception:
+        return ""
+
+
+def _device_fingerprint_blob() -> str:
+    """Collect cheap device identity strings for proxy-host heuristics."""
+    parts = [
+        (os.environ.get("ANDROSEC_DEVICE_HINT") or "").lower(),
+        _adb_getprop("ro.product.manufacturer").lower(),
+        _adb_getprop("ro.product.model").lower(),
+        _adb_getprop("ro.product.brand").lower(),
+        _adb_getprop("ro.hardware").lower(),
+        _adb_getprop("ro.product.device").lower(),
+        _adb_getprop("ro.build.fingerprint").lower(),
+        _adb_getprop("ro.boot.hardware").lower(),
+    ]
+    return " ".join(p for p in parts if p)
+
+
+def resolve_proxy_host() -> tuple[str, str]:
+    """Pick the HTTP proxy host as seen from the Android lab device.
+
+    Returns ``(host, reason)``.
+    Priority: ``ANDROSEC_MITM_HOST`` → Genymotion hint/props → AVD/emulator →
+    default AVD alias ``10.0.2.2``.
+    """
     override = (os.environ.get("ANDROSEC_MITM_HOST") or "").strip()
     if override:
-        return override
-    # Common defaults: AVD → 10.0.2.2; Genymotion often uses the host bridge.
+        return override, "ANDROSEC_MITM_HOST"
+
     hint = (os.environ.get("ANDROSEC_DEVICE_HINT") or "").lower()
-    if "genymotion" in hint:
-        return os.environ.get("ANDROSEC_GENYMOTION_HOST", "10.0.3.2")
-    return "10.0.2.2"
+    geny_host = (os.environ.get("ANDROSEC_GENYMOTION_HOST") or "10.0.3.2").strip() or "10.0.3.2"
+
+    if "genymotion" in hint or "geny" in hint:
+        return geny_host, "ANDROSEC_DEVICE_HINT=genymotion"
+
+    blob = _device_fingerprint_blob()
+    qemu = _adb_getprop("ro.kernel.qemu")
+
+    if any(
+        token in blob
+        for token in ("genymotion", "genymobile", "vbox86", "vbox86p", "ttvm")
+    ):
+        return geny_host, "detected Genymotion/VirtualBox guest"
+
+    if (
+        qemu == "1"
+        or any(token in blob for token in ("goldfish", "ranchu", "sdk_gphone", "emulator", "google_sdk"))
+    ):
+        return "10.0.2.2", "detected Android Emulator (AVD)"
+
+    # Unknown physical / custom image: AVD alias is still the safest default for
+    # lab docs; operators override with ANDROSEC_MITM_HOST.
+    return "10.0.2.2", "default AVD host alias (set ANDROSEC_MITM_HOST to override)"
 
 
-def _set_device_proxy(host: str, port: int) -> tuple[bool, str]:
+def _emulator_proxy_host() -> str:
+    """Back-compat wrapper used by older call sites / tests."""
+    host, _reason = resolve_proxy_host()
+    return host
+
+
+def _port_is_listening(port: int, host: str = "127.0.0.1") -> bool:
     try:
-        # global http proxy (works on many emulators; ignored safely if unsupported)
-        r1 = subprocess.run(
-            ["adb", "shell", "settings", "put", "global", "http_proxy", f"{host}:{port}"],
-            capture_output=True, text=True, timeout=10,
+        with socket.create_connection((host, port), timeout=0.4):
+            return True
+    except OSError:
+        return False
+
+
+def set_device_http_proxy(host: str, port: int) -> tuple[bool, str]:
+    """Set Android global HTTP proxy via ADB (``settings put global http_proxy``)."""
+    target = f"{host}:{port}"
+    try:
+        result = _adb_cmd(
+            "shell", "settings", "put", "global", "http_proxy", target, timeout=10
         )
-        return r1.returncode == 0, (r1.stderr or r1.stdout or "")[:200]
+        if result.returncode != 0:
+            err = (result.stderr or result.stdout or "adb settings put failed").strip()
+            return False, err[:200]
+        return True, target
     except Exception as exc:
         return False, str(exc)
 
 
-def _clear_device_proxy() -> None:
+def clear_device_http_proxy() -> tuple[bool, str]:
+    """Clear Android global HTTP proxy (``:0`` — works where ``settings delete`` does not)."""
     try:
-        subprocess.run(
-            ["adb", "shell", "settings", "put", "global", "http_proxy", ":0"],
-            capture_output=True, text=True, timeout=10,
+        result = _adb_cmd(
+            "shell",
+            "settings",
+            "put",
+            "global",
+            "http_proxy",
+            _PROXY_CLEAR_VALUE,
+            timeout=10,
         )
-    except Exception:
-        pass
+        if result.returncode != 0:
+            err = (result.stderr or result.stdout or "adb clear proxy failed").strip()
+            return False, err[:200]
+        return True, _PROXY_CLEAR_VALUE
+    except Exception as exc:
+        return False, str(exc)
 
 
-def _live_capture(package: str, dump_path: str) -> tuple[bool, str]:
-    """Best-effort mitmdump capture. Returns (ok, message)."""
-    mitmdump = shutil.which("mitmdump")
-    if not mitmdump:
-        return False, "mitmdump not on PATH"
+def _set_device_proxy(host: str, port: int) -> tuple[bool, str]:
+    return set_device_http_proxy(host, port)
 
-    host = _emulator_proxy_host()
-    port = _DEFAULT_PORT
-    # Write flows as JSON lines via a tiny addon inline is heavy; use
-    # --set harddump + flow export. Prefer saving stream file then reading
-    # with a simple request-log addon through -w (binary). For portability we
-    # ask mitmdump to write a dumper script that prints JSON lines.
-    addon = r"""
+
+def _clear_device_proxy() -> None:
+    clear_device_http_proxy()
+
+
+def resolve_dump_dir() -> str:
+    """Directory for live flow dumps (report/output dir preferred)."""
+    for key in ("ANDROSEC_MITM_OUT", "ANDROSEC_OUTPUT_DIR"):
+        value = (os.environ.get(key) or "").strip()
+        if value:
+            return value
+    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base, "output_reports")
+
+
+def _mitmdump_addon_source() -> str:
+    return r"""
 from mitmproxy import http
 import json
 
@@ -327,45 +423,90 @@ def response(flow: http.HTTPFlow):
     }
     print(json.dumps(obj), flush=True)
 """
-    with tempfile.NamedTemporaryFile("w", suffix="_androsec_mitm.py", delete=False) as handle:
-        handle.write(addon)
-        addon_path = handle.name
 
+
+def _live_capture(package: str, dump_path: str) -> tuple[bool, str]:
+    """Best-effort mitmdump capture with automatic device proxy set/clear.
+
+    Always clears ``global http_proxy`` in ``finally`` so a failed capture never
+    leaves the lab device proxying. Failures return ``(False, message)`` — callers
+    skip network capture without failing the whole scan.
+    """
+    mitmdump = shutil.which("mitmdump")
+    port = _DEFAULT_PORT
+    host, host_reason = resolve_proxy_host()
+    started_mitmdump = False
     proc = None
     out_f = None
+    addon_path = None
+
     try:
-        out_f = open(dump_path, "w", encoding="utf-8")
-        proc = subprocess.Popen(
-            [
-                mitmdump,
-                "-p", str(port),
-                "-s", addon_path,
-                "--set", "block_global=false",
-                "--quiet",
-            ],
-            stdout=out_f,
-            stderr=subprocess.DEVNULL,
-        )
-        time.sleep(1.5)
-        ok, msg = _set_device_proxy(host, port)
+        reuse_existing = _port_is_listening(port)
+        if not reuse_existing:
+            if not mitmdump:
+                return False, "mitmdump not on PATH and nothing listening on proxy port"
+
+            with tempfile.NamedTemporaryFile(
+                "w", suffix="_androsec_mitm.py", delete=False
+            ) as handle:
+                handle.write(_mitmdump_addon_source())
+                addon_path = handle.name
+
+            out_f = open(dump_path, "w", encoding="utf-8")
+            proc = subprocess.Popen(
+                [
+                    mitmdump,
+                    "-p", str(port),
+                    "-s", addon_path,
+                    "--set", "block_global=false",
+                    "--quiet",
+                ],
+                stdout=out_f,
+                stderr=subprocess.DEVNULL,
+            )
+            started_mitmdump = True
+            time.sleep(1.5)
+            if proc.poll() is not None:
+                return False, f"mitmdump exited early (port {port})"
+        else:
+            # Existing listener (operator-started mitmdump). Still set device proxy;
+            # dump file may stay empty unless that process writes here.
+            if not os.path.exists(dump_path):
+                open(dump_path, "a", encoding="utf-8").close()
+
+        ok, msg = set_device_http_proxy(host, port)
         if not ok:
-            return False, f"could not set device proxy: {msg}"
+            return False, f"could not set device proxy via ADB: {msg}"
 
         if package:
-            subprocess.run(
-                [
-                    "adb", "shell", "monkey", "-p", package,
-                    "-c", "android.intent.category.LAUNCHER", "1",
-                ],
-                capture_output=True, timeout=15,
-            )
+            try:
+                _adb_cmd(
+                    "shell",
+                    "monkey",
+                    "-p",
+                    package,
+                    "-c",
+                    "android.intent.category.LAUNCHER",
+                    "1",
+                    timeout=15,
+                )
+            except Exception:
+                pass
+
         time.sleep(max(3, _LIVE_SECONDS))
-        return True, f"live capture → {dump_path} (proxy {host}:{port})"
+        mode = "reused listener" if reuse_existing else "started mitmdump"
+        return True, (
+            f"live capture → {dump_path} (proxy {host}:{port}; {host_reason}; {mode})"
+        )
     except Exception as exc:
         return False, f"live capture failed: {exc}"
     finally:
-        _clear_device_proxy()
-        if proc is not None:
+        # Always clear — even when set failed mid-flight or capture errored.
+        try:
+            clear_device_http_proxy()
+        except Exception:
+            pass
+        if started_mitmdump and proc is not None:
             try:
                 proc.terminate()
                 proc.wait(timeout=5)
@@ -379,10 +520,11 @@ def response(flow: http.HTTPFlow):
                 out_f.close()
             except Exception:
                 pass
-        try:
-            os.remove(addon_path)
-        except OSError:
-            pass
+        if addon_path:
+            try:
+                os.remove(addon_path)
+            except OSError:
+                pass
 
 
 def run(ctx):
@@ -404,8 +546,12 @@ def run(ctx):
     if not dump_text:
         ok, reason = device_ready()
         mitmdump = shutil.which("mitmdump")
+        port = _DEFAULT_PORT
         if not ok:
-            lines.append(f"[!] {reason} — SKIPPED (set ANDROSEC_MITM_DUMP for offline analysis)")
+            lines.append(
+                f"[!] {reason} — SKIPPED network capture "
+                "(set ANDROSEC_MITM_DUMP for offline analysis)"
+            )
             findings.append({
                 "rule_id": "MITM_PROXY_NOT_READY",
                 "evidence": reason,
@@ -416,14 +562,17 @@ def run(ctx):
                 "findings": findings,
                 "skipped": True,
             }
-        if not mitmdump and not dump_env:
+
+        listener_up = _port_is_listening(port)
+        if not mitmdump and not listener_up and not dump_env:
             lines.append(
-                "[!] mitmdump not on PATH and no ANDROSEC_MITM_DUMP — SKIPPED. "
-                "Install mitmproxy and install the CA on the lab device/emulator."
+                "[!] mitmdump not on PATH, nothing listening on "
+                f"port {port}, and no ANDROSEC_MITM_DUMP — SKIPPED. "
+                "Install mitmproxy (CA install is a one-time lab step for HTTPS)."
             )
             findings.append({
                 "rule_id": "MITM_PROXY_NOT_READY",
-                "evidence": "mitmdump missing; no offline dump",
+                "evidence": "mitmdump missing; no offline dump; proxy port closed",
             })
             return {
                 "tool": "mitmproxy",
@@ -432,19 +581,37 @@ def run(ctx):
                 "skipped": True,
             }
 
-        if mitmdump:
+        if mitmdump or listener_up:
             try:
                 package = ctx.apk.get_package()
             except Exception:
                 package = ""
-            out_dir = os.environ.get("ANDROSEC_MITM_OUT") or tempfile.gettempdir()
-            os.makedirs(out_dir, exist_ok=True)
+            out_dir = resolve_dump_dir()
+            try:
+                os.makedirs(out_dir, exist_ok=True)
+            except Exception as exc:
+                lines.append(f"[!] Cannot create dump dir {out_dir}: {exc} — SKIPPED")
+                findings.append({
+                    "rule_id": "MITM_PROXY_NOT_READY",
+                    "evidence": f"dump dir error: {exc}",
+                })
+                return {
+                    "tool": "mitmproxy",
+                    "output": "\n".join(lines),
+                    "findings": findings,
+                    "skipped": True,
+                }
             dump_path = os.path.join(out_dir, "androsec_mitm_flows.ndjson")
+            host, host_reason = resolve_proxy_host()
+            lines.append(
+                f"[*] Auto device proxy: will set global http_proxy → {host}:{port} "
+                f"({host_reason}), then clear to {_PROXY_CLEAR_VALUE}"
+            )
             live_ok, live_msg = _live_capture(package or "", dump_path)
             lines.append(f"[*] Live capture: {live_msg}")
             if live_ok and os.path.isfile(dump_path):
                 dump_text = _load_dump_text(dump_path)
-                source = "live mitmdump"
+                source = "live mitmdump (auto proxy)"
             else:
                 findings.append({
                     "rule_id": "MITM_PROXY_NOT_READY",
@@ -464,11 +631,11 @@ def run(ctx):
     if source:
         lines.append(f"[*] Source: {source}")
 
-    # Setup reminder for operators (not a finding).
     lines.append(
-        "[i] Lab setup: install mitmproxy CA as user CA; point device proxy to "
-        "host:8080 (AVD 10.0.2.2 / Genymotion host bridge). "
-        "Prefer Genymotion/official emulator/rooted phone."
+        "[i] Lab setup: install mitmproxy CA as user CA once for HTTPS. "
+        "Device HTTP proxy is set/cleared automatically via ADB when this "
+        "analyzer is enabled (AVD 10.0.2.2 / Genymotion host bridge / "
+        "ANDROSEC_MITM_HOST). Prefer Genymotion/official emulator/rooted phone."
     )
 
     return {"tool": "mitmproxy", "output": "\n".join(lines), "findings": findings}

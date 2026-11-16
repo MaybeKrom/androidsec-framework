@@ -215,24 +215,30 @@ python app.py
 
 ## Optional mitmproxy (lab traffic capture)
 
-Enable the `mitmproxy` analyzer in the web UI / CLI like other dynamic tools. Intended for **authorized lab apps** on Genymotion, the official emulator, or a rooted phone (KSU graduation-project framing).
+Enable the `mitmproxy` analyzer in the web UI / CLI like other dynamic tools. Intended for **authorized lab apps** on Genymotion, the official emulator, or a rooted phone (KSU graduation-project framing). When enabled and a device is connected, androsec **automatically** sets and clears the device global HTTP proxy via ADB — no manual emulator proxy UI step.
 
 ### Setup
-1. Install mitmproxy and ensure `mitmdump` is on `PATH`.
-2. Install the mitmproxy CA as a **user** certificate on the lab device/emulator (required for HTTPS). Many training apps trust user CAs or allow cleartext.
-3. Point the device HTTP proxy at the host:
-   - Android Emulator (AVD): often `10.0.2.2:8080`
-   - Genymotion: host bridge IP (or set `ANDROSEC_MITM_HOST` / `ANDROSEC_DEVICE_HINT=genymotion`)
-4. Prefer Genymotion / official emulator / rooted phone for Frida + TLS interception (android-x86 is often flaky for Frida).
+1. Install mitmproxy and ensure `mitmdump` is on `PATH` (analyzer starts it on the bounded port if nothing is already listening).
+2. **One-time lab step for HTTPS:** install the mitmproxy CA as a **user** certificate on the lab device/emulator. Many training apps trust user CAs or allow cleartext. Proxy routing itself is automated.
+3. Prefer Genymotion / official emulator / rooted phone for Frida + TLS interception (android-x86 is often flaky for Frida).
+
+### Automatic device proxy
+On live capture the analyzer runs `settings put global http_proxy <host>:<port>`, then always clears with `settings put global http_proxy :0` in teardown (including failure paths). Host selection:
+- `ANDROSEC_MITM_HOST` override when set
+- Genymotion / VirtualBox guest detection (or `ANDROSEC_DEVICE_HINT=genymotion` → default `10.0.3.2`, overridable via `ANDROSEC_GENYMOTION_HOST`)
+- Standard AVD / goldfish / ranchu → `10.0.2.2`
+- Otherwise defaults to the AVD alias (override with `ANDROSEC_MITM_HOST`)
+
+Live flow dumps land under the scan report/output directory (`ANDROSEC_MITM_OUT` / `ANDROSEC_OUTPUT_DIR` / `output_reports`). Failures skip network capture only — they never fail the whole scan. Disabled analyzer → no ADB proxy changes.
 
 ### Usage
 
 ```bash
-# Offline / CI: parse a saved dump (JSON array, HAR, or NDJSON)
+# Offline / CI: parse a saved dump (JSON array, HAR, or NDJSON) — no device needed
 export ANDROSEC_MITM_DUMP=/path/to/flows.json
 python main.py target.apk --only mitmproxy --no-adb
 
-# Live short capture during a dynamic scan (needs device + mitmdump)
+# Live short capture: auto proxy set/clear + mitmdump (needs device)
 python main.py target.apk --only mitmproxy frida network ssl_pinning
 ```
 
@@ -263,7 +269,7 @@ Findings (`MITM_CLEARTEXT_HTTP`, `MITM_SENSITIVE_HEADER`, `MITM_SENSITIVE_BODY`,
 - **Frida** (and mitmproxy + pinning labs) are often flaky on android-x86 — prefer Genymotion, the official emulator, or a rooted phone.  
 - Frida analyzer retries attach and falls back to spawn; `scripts/runtime_monitor.js` includes best-effort OkHttp / TrustManager / HostnameVerifier lab unpin hooks.  
 - Set `ANDROID_SERIAL` when multiple devices are connected.  
-- Optional env: `ANDROSEC_MITM_DUMP`, `ANDROSEC_MITM_PORT`, `ANDROSEC_MITM_HOST`, `ANDROSEC_FRIDA_SECONDS`.
+- Optional env: `ANDROSEC_MITM_DUMP`, `ANDROSEC_MITM_PORT`, `ANDROSEC_MITM_HOST`, `ANDROSEC_MITM_OUT`, `ANDROSEC_DEVICE_HINT`, `ANDROSEC_FRIDA_SECONDS`.
 
 ---
 

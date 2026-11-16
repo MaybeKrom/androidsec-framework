@@ -92,6 +92,282 @@ class MitmproxyAnalyzerTests(unittest.TestCase):
         self.assertIn("mitmproxy", ids)
         self.assertIn("mitmproxy", scan_main.DYNAMIC_ANALYZERS)
 
+    def test_offline_dump_does_not_touch_adb_proxy(self):
+        ctx = mock.Mock()
+        ctx.apk.get_package.return_value = "com.android.insecurebankv2"
+        with mock.patch.dict(os.environ, {"ANDROSEC_MITM_DUMP": FIXTURE}), mock.patch(
+            "extra.mitmproxy_analyzer.set_device_http_proxy"
+        ) as set_proxy, mock.patch(
+            "extra.mitmproxy_analyzer.clear_device_http_proxy"
+        ) as clear_proxy, mock.patch(
+            "extra.mitmproxy_analyzer._live_capture"
+        ) as live:
+            result = mitmproxy_analyzer.run(ctx)
+        self.assertFalse(result.get("skipped"))
+        set_proxy.assert_not_called()
+        clear_proxy.assert_not_called()
+        live.assert_not_called()
+
+
+class MitmproxyAutoProxyTests(unittest.TestCase):
+    """Mock ADB: proxy must be set before capture and cleared afterward."""
+
+    def _completed(self, code=0, stdout="", stderr=""):
+        return mock.Mock(returncode=code, stdout=stdout, stderr=stderr)
+
+    def _adb_side_effect(self, *args, **kwargs):
+        # args[0] is the full argv list when patching subprocess.run with _adb_cmd,
+        # but _adb_cmd builds ["adb", *args] — tests patch _adb_cmd / helpers.
+        return self._completed(0)
+
+    def test_resolve_proxy_host_override_and_hints(self):
+        with mock.patch.dict(
+            os.environ, {"ANDROSEC_MITM_HOST": "192.168.56.1"}, clear=False
+        ):
+            host, reason = mitmproxy_analyzer.resolve_proxy_host()
+            self.assertEqual(host, "192.168.56.1")
+            self.assertIn("ANDROSEC_MITM_HOST", reason)
+
+        env = {
+            k: v
+            for k, v in os.environ.items()
+            if k not in ("ANDROSEC_MITM_HOST", "ANDROSEC_DEVICE_HINT")
+        }
+        env["ANDROSEC_DEVICE_HINT"] = "genymotion"
+        env["ANDROSEC_GENYMOTION_HOST"] = "10.0.3.2"
+        with mock.patch.dict(os.environ, env, clear=True), mock.patch(
+            "extra.mitmproxy_analyzer._adb_getprop", return_value=""
+        ):
+            host, reason = mitmproxy_analyzer.resolve_proxy_host()
+            self.assertEqual(host, "10.0.3.2")
+            self.assertIn("genymotion", reason.lower())
+
+    def test_resolve_proxy_host_detects_avd_and_genymotion_props(self):
+        env = {
+            k: v
+            for k, v in os.environ.items()
+            if k not in ("ANDROSEC_MITM_HOST", "ANDROSEC_DEVICE_HINT")
+        }
+
+        def getprop_avd(prop):
+            return {
+                "ro.kernel.qemu": "1",
+                "ro.hardware": "ranchu",
+                "ro.product.model": "sdk_gphone64_x86_64",
+            }.get(prop, "")
+
+        with mock.patch.dict(os.environ, env, clear=True), mock.patch(
+            "extra.mitmproxy_analyzer._adb_getprop", side_effect=getprop_avd
+        ):
+            host, reason = mitmproxy_analyzer.resolve_proxy_host()
+            self.assertEqual(host, "10.0.2.2")
+            self.assertIn("Emulator", reason)
+
+        def getprop_geny(prop):
+            return {
+                "ro.product.manufacturer": "Genymotion",
+                "ro.hardware": "vbox86",
+                "ro.product.model": "Google Pixel 5",
+            }.get(prop, "")
+
+        with mock.patch.dict(os.environ, env, clear=True), mock.patch(
+            "extra.mitmproxy_analyzer._adb_getprop", side_effect=getprop_geny
+        ):
+            host, reason = mitmproxy_analyzer.resolve_proxy_host()
+            self.assertEqual(host, "10.0.3.2")
+            self.assertIn("Genymotion", reason)
+
+    def test_set_and_clear_device_proxy_adb_commands(self):
+        calls = []
+
+        def fake_adb(*args, **kwargs):
+            calls.append(list(args))
+            return self._completed(0)
+
+        with mock.patch("extra.mitmproxy_analyzer._adb_cmd", side_effect=fake_adb):
+            ok, msg = mitmproxy_analyzer.set_device_http_proxy("10.0.2.2", 8080)
+            self.assertTrue(ok)
+            self.assertEqual(msg, "10.0.2.2:8080")
+            ok, msg = mitmproxy_analyzer.clear_device_http_proxy()
+            self.assertTrue(ok)
+            self.assertEqual(msg, ":0")
+
+        self.assertEqual(
+            calls[0],
+            ["shell", "settings", "put", "global", "http_proxy", "10.0.2.2:8080"],
+        )
+        self.assertEqual(
+            calls[1],
+            ["shell", "settings", "put", "global", "http_proxy", ":0"],
+        )
+
+    def test_live_capture_sets_proxy_before_and_clears_after(self):
+        order = []
+
+        def fake_set(host, port):
+            order.append(("set", f"{host}:{port}"))
+            return True, f"{host}:{port}"
+
+        def fake_clear():
+            order.append(("clear", ":0"))
+            return True, ":0"
+
+        fake_proc = mock.Mock()
+        fake_proc.poll.return_value = None
+        fake_proc.wait.return_value = 0
+
+        with tempfile.TemporaryDirectory() as tmp:
+            dump_path = os.path.join(tmp, "flows.ndjson")
+            with mock.patch(
+                "extra.mitmproxy_analyzer.shutil.which", return_value="/usr/bin/mitmdump"
+            ), mock.patch(
+                "extra.mitmproxy_analyzer._port_is_listening", return_value=False
+            ), mock.patch(
+                "extra.mitmproxy_analyzer.resolve_proxy_host",
+                return_value=("10.0.2.2", "test"),
+            ), mock.patch(
+                "extra.mitmproxy_analyzer.set_device_http_proxy", side_effect=fake_set
+            ), mock.patch(
+                "extra.mitmproxy_analyzer.clear_device_http_proxy", side_effect=fake_clear
+            ), mock.patch(
+                "extra.mitmproxy_analyzer.subprocess.Popen", return_value=fake_proc
+            ), mock.patch(
+                "extra.mitmproxy_analyzer._adb_cmd", return_value=self._completed(0)
+            ), mock.patch(
+                "extra.mitmproxy_analyzer.time.sleep"
+            ), mock.patch.dict(
+                os.environ, {"ANDROSEC_MITM_SECONDS": "3"}, clear=False
+            ):
+                ok, msg = mitmproxy_analyzer._live_capture(
+                    "com.android.insecurebankv2", dump_path
+                )
+
+        self.assertTrue(ok)
+        self.assertIn("10.0.2.2:8080", msg)
+        self.assertEqual(order[0][0], "set")
+        self.assertEqual(order[-1][0], "clear")
+        self.assertIn(("set", "10.0.2.2:8080"), order)
+        self.assertIn(("clear", ":0"), order)
+        fake_proc.terminate.assert_called()
+
+    def test_live_capture_clears_proxy_when_set_fails(self):
+        order = []
+
+        def fake_set(host, port):
+            order.append("set")
+            return False, "adb denied"
+
+        def fake_clear():
+            order.append("clear")
+            return True, ":0"
+
+        fake_proc = mock.Mock()
+        fake_proc.poll.return_value = None
+
+        with tempfile.TemporaryDirectory() as tmp:
+            dump_path = os.path.join(tmp, "flows.ndjson")
+            with mock.patch(
+                "extra.mitmproxy_analyzer.shutil.which", return_value="/usr/bin/mitmdump"
+            ), mock.patch(
+                "extra.mitmproxy_analyzer._port_is_listening", return_value=False
+            ), mock.patch(
+                "extra.mitmproxy_analyzer.resolve_proxy_host",
+                return_value=("10.0.2.2", "test"),
+            ), mock.patch(
+                "extra.mitmproxy_analyzer.set_device_http_proxy", side_effect=fake_set
+            ), mock.patch(
+                "extra.mitmproxy_analyzer.clear_device_http_proxy", side_effect=fake_clear
+            ), mock.patch(
+                "extra.mitmproxy_analyzer.subprocess.Popen", return_value=fake_proc
+            ), mock.patch(
+                "extra.mitmproxy_analyzer.time.sleep"
+            ):
+                ok, msg = mitmproxy_analyzer._live_capture("pkg", dump_path)
+
+        self.assertFalse(ok)
+        self.assertIn("could not set device proxy", msg)
+        self.assertEqual(order, ["set", "clear"])
+
+    def test_live_capture_clears_proxy_on_mid_capture_exception(self):
+        order = []
+
+        def fake_set(host, port):
+            order.append("set")
+            return True, f"{host}:{port}"
+
+        def fake_clear():
+            order.append("clear")
+            return True, ":0"
+
+        fake_proc = mock.Mock()
+        fake_proc.poll.return_value = None
+
+        with tempfile.TemporaryDirectory() as tmp:
+            dump_path = os.path.join(tmp, "flows.ndjson")
+            with mock.patch(
+                "extra.mitmproxy_analyzer.shutil.which", return_value="/usr/bin/mitmdump"
+            ), mock.patch(
+                "extra.mitmproxy_analyzer._port_is_listening", return_value=False
+            ), mock.patch(
+                "extra.mitmproxy_analyzer.resolve_proxy_host",
+                return_value=("10.0.2.2", "test"),
+            ), mock.patch(
+                "extra.mitmproxy_analyzer.set_device_http_proxy", side_effect=fake_set
+            ), mock.patch(
+                "extra.mitmproxy_analyzer.clear_device_http_proxy", side_effect=fake_clear
+            ), mock.patch(
+                "extra.mitmproxy_analyzer.subprocess.Popen", return_value=fake_proc
+            ), mock.patch(
+                "extra.mitmproxy_analyzer._adb_cmd",
+                side_effect=RuntimeError("monkey boom"),
+            ), mock.patch(
+                # sleep after monkey; raise on the capture wait sleep
+                "extra.mitmproxy_analyzer.time.sleep",
+                side_effect=[None, RuntimeError("capture interrupted")],
+            ):
+                ok, msg = mitmproxy_analyzer._live_capture("pkg.lab", dump_path)
+
+        self.assertFalse(ok)
+        self.assertIn("live capture failed", msg)
+        self.assertEqual(order, ["set", "clear"])
+
+    def test_run_live_skips_gracefully_when_proxy_fails(self):
+        ctx = mock.Mock()
+        ctx.apk.get_package.return_value = "jakhar.aseem.diva"
+        env = {k: v for k, v in os.environ.items() if k != "ANDROSEC_MITM_DUMP"}
+        with tempfile.TemporaryDirectory() as tmp:
+            env["ANDROSEC_OUTPUT_DIR"] = tmp
+            with mock.patch.dict(os.environ, env, clear=True), mock.patch(
+                "extra.mitmproxy_analyzer.device_ready", return_value=(True, "")
+            ), mock.patch(
+                "extra.mitmproxy_analyzer.shutil.which", return_value="/usr/bin/mitmdump"
+            ), mock.patch(
+                "extra.mitmproxy_analyzer._port_is_listening", return_value=False
+            ), mock.patch(
+                "extra.mitmproxy_analyzer._live_capture",
+                return_value=(False, "could not set device proxy via ADB: denied"),
+            ):
+                result = mitmproxy_analyzer.run(ctx)
+
+        self.assertTrue(result.get("skipped"))
+        self.assertEqual(result["tool"], "mitmproxy")
+        self.assertTrue(
+            any(f["rule_id"] == "MITM_PROXY_NOT_READY" for f in result["findings"])
+        )
+        self.assertIn("could not set device proxy", result["output"])
+
+    def test_resolve_dump_dir_prefers_report_output(self):
+        with mock.patch.dict(
+            os.environ,
+            {"ANDROSEC_MITM_OUT": "/tmp/mitm-out", "ANDROSEC_OUTPUT_DIR": "/tmp/scan-out"},
+            clear=False,
+        ):
+            self.assertEqual(mitmproxy_analyzer.resolve_dump_dir(), "/tmp/mitm-out")
+        env = {k: v for k, v in os.environ.items() if k != "ANDROSEC_MITM_OUT"}
+        env["ANDROSEC_OUTPUT_DIR"] = "/tmp/scan-out-only"
+        with mock.patch.dict(os.environ, env, clear=True):
+            self.assertEqual(mitmproxy_analyzer.resolve_dump_dir(), "/tmp/scan-out-only")
+
 
 class FridaScriptTests(unittest.TestCase):
     def test_runtime_monitor_contains_ssl_unpin(self):

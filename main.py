@@ -91,6 +91,8 @@ def run_scan(apk_path, output_dir=None, only=None, skip=None,
 
     out_dir = output_dir or os.path.join(BASE, "output_reports")
     os.makedirs(out_dir, exist_ok=True)
+    # Optional analyzers (e.g. mitmproxy live dump) write under the report dir.
+    os.environ["ANDROSEC_OUTPUT_DIR"] = out_dir
 
     if start_adb and not static_only and shutil.which("adb"):
         try: subprocess.run(["adb", "start-server"], capture_output=True, timeout=10)

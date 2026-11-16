@@ -53,7 +53,18 @@ It is designed for **authorized lab environments** and intentionally vulnerable 
 
 ## Screenshots & deliverables
 
-Security assessment PDFs and AI exploitation reports are produced locally under `output_reports/` and `exploitations/`. The web UI provides one-click PDF download for both full-app assessments and single-finding exploitation write-ups.
+Each scan writes a self-contained folder under `scans/`:
+
+```text
+scans/scan_YYYYMMDD_HHMMSS_<AppName>/
+  index.json                 # finding IDs ↔ exploitation evidence links
+  assessment_report.html|json|pdf
+  security_report_*.html|json  # legacy basename (web UI / Exploit links)
+  evidence/                    # mitm dumps + exploitation_<run_id>/
+  exploitation_report_<finding_id>_<run_id>.pdf
+```
+
+Legacy dual-writes still land in `output_reports/` and `exploitations/` so existing web routes keep working. Zip one `scans/scan_*` folder for a complete lab deliverable. The web UI provides one-click PDF download for both full-app assessments and single-finding exploitation write-ups.
 
 ---
 
@@ -118,7 +129,8 @@ Security assessment PDFs and AI exploitation reports are produced locally under 
 analyzers/    core static & dynamic scanners
 extra/        MSS extensions (SQL, crypto, SSL, intent, SBOM, lab, …)
 rules/        severity catalog, OWASP MASVS map, dedupe
-reporter/     HTML + PDF security reports
+reporter/     HTML + PDF security reports + scan_store (per-scan folders)
+scans/        per-scan assessment + evidence bundles (gitignored)
 webapp/       Flask UI + AI exploit module
 scripts/      Frida helpers
 tests/        unit tests
@@ -229,7 +241,7 @@ On live capture the analyzer runs `settings put global http_proxy <host>:<port>`
 - Standard AVD / goldfish / ranchu → `10.0.2.2`
 - Otherwise defaults to the AVD alias (override with `ANDROSEC_MITM_HOST`)
 
-Live flow dumps land under the scan report/output directory (`ANDROSEC_MITM_OUT` / `ANDROSEC_OUTPUT_DIR` / `output_reports`). Failures skip network capture only — they never fail the whole scan. Disabled analyzer → no ADB proxy changes.
+Live flow dumps land under the active scan’s `evidence/` directory (`ANDROSEC_MITM_OUT` / `ANDROSEC_OUTPUT_DIR`, set automatically during `run_scan`). Failures skip network capture only — they never fail the whole scan. Disabled analyzer → no ADB proxy changes.
 
 ### Practical mitmproxy addons
 

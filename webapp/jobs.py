@@ -27,6 +27,8 @@ def create_job(apk_path, analyzers, serial=None):
         "total": len(analyzers),
         "html_path": None,
         "json_path": None,
+        "scan_id": None,
+        "scan_dir": None,
         "summary": None,
     }
     with _lock:
@@ -149,5 +151,7 @@ def _run(job_id):
         error=None,
         html_path=result["html_path"],
         json_path=result["json_path"],
+        scan_id=result.get("scan_id"),
+        scan_dir=result.get("scan_dir"),
         summary=result["summary"],
     )

@@ -252,14 +252,25 @@ def _send_report_pdf(filename):
     try:
         import json
         from reporter.report_generator import ReportGenerator
+        from reporter.scan_store import (
+            resolve_scan_dir_from_metadata,
+            sync_assessment_pdf,
+        )
         with open(json_path, encoding="utf-8") as handle:
             data = json.load(handle)
+        metadata = data.get("metadata") or {}
         ReportGenerator(
-            data.get("metadata") or {},
+            metadata,
             data.get("tool_outputs") or [],
             data.get("findings") or [],
             data.get("summary") or {},
         ).save_pdf(pdf_path)
+        scan_dir = resolve_scan_dir_from_metadata(metadata)
+        stamp = str(metadata.get("report_stamp") or "").strip()
+        if not stamp and filename.startswith("security_report_") and filename.endswith(".pdf"):
+            stamp = filename[len("security_report_"):-len(".pdf")]
+        if scan_dir and stamp:
+            sync_assessment_pdf(scan_dir, stamp, pdf_path)
     except ImportError:
         page = "<!DOCTYPE html><title>PDF unavailable</title><p>Install weasyprint to download this report as PDF.</p>"
         return Response(page, status=503, mimetype="text/html; charset=utf-8")
@@ -300,6 +311,7 @@ def too_large(_exc):
 def main():
     os.makedirs(UPLOAD_DIR, exist_ok=True)
     os.makedirs(REPORT_DIR, exist_ok=True)
+    os.makedirs(os.path.join(PROJECT_ROOT, "scans"), exist_ok=True)
     os.makedirs(DECODED_DIR, exist_ok=True)
     app.run(host="127.0.0.1", port=5000, threaded=True)
 

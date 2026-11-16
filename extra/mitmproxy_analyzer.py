@@ -503,6 +503,10 @@ def resolve_dump_dir() -> str:
         if value:
             return value
     base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    # Prefer unified scan evidence tree; fall back to legacy flat reports dir.
+    scans = os.path.join(base, "scans")
+    if os.path.isdir(scans):
+        return scans
     return os.path.join(base, "output_reports")
 
 

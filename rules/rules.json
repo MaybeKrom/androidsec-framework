@@ -845,5 +845,68 @@
     "title": "Root indicators on device",
     "description": "su/magisk indicators.",
     "recommendation": "Lab note."
+  },
+  "MITM_CLEARTEXT_HTTP": {
+    "severity": "High",
+    "confidence": "High",
+    "title": "Cleartext HTTP via mitmproxy",
+    "description": "Lab mitmproxy capture observed plaintext HTTP traffic.",
+    "recommendation": "Use HTTPS only; disable cleartext in NSC for release builds."
+  },
+  "MITM_SENSITIVE_HEADER": {
+    "severity": "High",
+    "confidence": "High",
+    "title": "Sensitive header in transit",
+    "description": "Authorization/Cookie/API-key style header observed in captured traffic.",
+    "recommendation": "Avoid sending long-lived secrets; use TLS with pinning where appropriate."
+  },
+  "MITM_SENSITIVE_BODY": {
+    "severity": "High",
+    "confidence": "High",
+    "title": "Sensitive body field in transit",
+    "description": "password/token/secret-like body content observed in captured traffic.",
+    "recommendation": "Encrypt in transit; minimize sensitive fields in requests."
+  },
+  "MITM_TRAFFIC_SUMMARY": {
+    "severity": "Info",
+    "confidence": "High",
+    "title": "mitmproxy traffic summary",
+    "description": "HTTP(S) flows were captured; no sensitive patterns matched.",
+    "recommendation": "Review hosts manually for lab coverage."
+  },
+  "MITM_PROXY_NOT_READY": {
+    "severity": "Info",
+    "confidence": "High",
+    "title": "mitmproxy not ready",
+    "description": "Analyzer enabled but dump/mitmdump/device proxy unavailable.",
+    "recommendation": "Install mitmproxy, install CA on lab device, or set ANDROSEC_MITM_DUMP."
+  },
+  "RUNTIME_SSL_UNPIN": {
+    "severity": "Info",
+    "confidence": "Medium",
+    "title": "Frida SSL unpin hook fired",
+    "description": "Lab Frida script bypassed a pinning/TrustManager check at runtime.",
+    "recommendation": "Expected for educational apps under analysis; verify release pinning."
+  },
+  "RUNTIME_HTTP_URL": {
+    "severity": "Info",
+    "confidence": "Medium",
+    "title": "Runtime HTTP(S) URL observed",
+    "description": "Frida saw URL.openConnection for an http(s) endpoint.",
+    "recommendation": "Correlate with mitmproxy / static API extractor."
+  },
+  "RUNTIME_HTTP_CLEARTEXT": {
+    "severity": "High",
+    "confidence": "Medium",
+    "title": "Runtime cleartext HTTP URL",
+    "description": "Frida observed an http:// URL at runtime.",
+    "recommendation": "Remove cleartext endpoints."
+  },
+  "RUNTIME_FRIDA_ATTACH_FAILED": {
+    "severity": "Info",
+    "confidence": "High",
+    "title": "Frida attach failed",
+    "description": "Could not attach/spawn via Frida on this device.",
+    "recommendation": "Use Genymotion/official emulator/rooted phone; match frida-server version."
   }
 }

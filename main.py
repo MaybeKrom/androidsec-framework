@@ -41,12 +41,14 @@ ANALYZERS = [
     ("runtime",           "analyzers.runtime_inspector",       "Launch and crash monitoring (needs ADB)"),
     ("backup_extractor",  "extra.backup_extractor",            "run-as prefs/DB extraction when debuggable"),
     ("uiautomator",       "extra.uiautomator_explorer",        "UI hierarchy / challenge menu capture (needs ADB)"),
-    ("frida",             "analyzers.frida_runtime_analyzer",  "Runtime hooks for prefs and crypto (needs Frida)"),
+    ("frida",             "analyzers.frida_runtime_analyzer",  "Runtime hooks for prefs, crypto, SSL unpin (needs Frida)"),
+    ("mitmproxy",         "extra.mitmproxy_analyzer",          "Optional HTTP(S) traffic capture via mitmproxy / dump"),
     ("log",               "analyzers.log_analyzer",            "Logcat scan for leaked secrets (needs ADB)"),
 ]
 
 DYNAMIC_ANALYZERS = {
-    "adb_inspector", "runtime", "backup_extractor", "uiautomator", "frida", "log",
+    "adb_inspector", "runtime", "backup_extractor", "uiautomator", "frida",
+    "mitmproxy", "log",
 }
 BASE = os.path.dirname(os.path.abspath(__file__))
 

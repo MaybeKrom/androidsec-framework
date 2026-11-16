@@ -20,11 +20,25 @@ LEVEL_COLOR = {"CRITICAL": "#8e44ad", "HIGH": "#e74c3c",
 SEVERITY_ORDER = {"Critical": 0, "High": 1, "Medium": 2, "Low": 3, "Info": 4}
 
 
-def sorted_findings(findings):
-    """Same order as the HTML table, so an exploit link index stays stable.
+def _severity_rank(severity):
+    """Critical → High → Medium → Low → Info; unknown severities sort last."""
+    if severity is None:
+        return 9
+    key = str(severity).strip()
+    if key in SEVERITY_ORDER:
+        return SEVERITY_ORDER[key]
+    titled = key[:1].upper() + key[1:].lower() if key else ""
+    if titled == "Info" or key.lower() in ("informational", "information"):
+        return SEVERITY_ORDER["Info"]
+    return SEVERITY_ORDER.get(titled, 9)
 
-    Exploit-oriented: auto-exploit priority first (providers/WebView/run-as before
-    TLS / format-only secrets), then severity, then rule id for stability.
+
+def sorted_findings(findings):
+    """Same order as the HTML/PDF tables, so an exploit link index stays stable.
+
+    Severity first (Critical → … → Info), then auto-exploit priority within a
+    band (providers/WebView/run-as before TLS / format-only secrets), then
+    rule id for stability.
     """
     try:
         from webapp.exploit_grounding import exploit_priority
@@ -35,8 +49,8 @@ def sorted_findings(findings):
     return sorted(
         findings,
         key=lambda item: (
+            _severity_rank(item.get("severity")),
             -exploit_priority(item),
-            SEVERITY_ORDER.get(item.get("severity"), 9),
             item.get("rule_id") or "",
         ),
     )

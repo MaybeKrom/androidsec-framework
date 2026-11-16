@@ -150,6 +150,8 @@ h2 {{
 h2.break {{ break-before: page; }}
 main > section {{ break-before: page; }}
 main > section:first-child {{ break-before: auto; }}
+/* Exception: short disclaimer must not sit alone on its own page. */
+main > section.closing {{ break-before: auto; page-break-before: auto; }}
 h3 {{ margin: 0; font-size: 12pt; break-after: avoid; }}
 h4 {{
   margin: 8px 0 2px;

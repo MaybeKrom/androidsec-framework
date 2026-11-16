@@ -36,6 +36,9 @@ _COLLAPSE_BY_RULE = {
     "DEEPLINK_BROWSABLE",
     "SSL_CUSTOM_TRUSTMANAGER",
     "WEBVIEW_JS_ENABLED",
+    "RUNTIME_SSL_UNPIN",
+    "RUNTIME_HTTP_URL",
+    "MITM_TRAFFIC_SUMMARY",
 }
 
 # Equivalent findings from overlapping tools — keep the preferred rule id.

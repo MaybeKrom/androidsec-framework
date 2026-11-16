@@ -50,7 +50,7 @@ def sorted_findings(findings):
         findings,
         key=lambda item: (
             _severity_rank(item.get("severity")),
-            -exploit_priority(item),
+            -exploit_priority(item, findings),
             item.get("rule_id") or "",
         ),
     )

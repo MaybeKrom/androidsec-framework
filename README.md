@@ -33,7 +33,7 @@ It is designed for **authorized lab environments** and intentionally vulnerable 
 | Pillar | What you get |
 |--------|----------------|
 | **Static analysis** | Manifest, components, secrets, crypto/SQL/WebView, network/NSC, SBOM, intent abuse, native libs, lab challenge mapping, attack-chain correlation |
-| **Dynamic analysis** | ADB readiness, runtime crashes, run-as storage extraction, UIAutomator menus, Frida hooks, logcat secret detection |
+| **Dynamic analysis** | ADB readiness, runtime crashes, run-as storage extraction, UIAutomator menus, Frida hooks (+ lab SSL unpin), optional mitmproxy traffic capture, logcat secret detection |
 | **AI exploitation** | Claude-recommended grounded PoC planning → ADB/Frida execution → Python evidence gate (strong/weak/manual) → single-finding exploitation PDF |
 | **Reporting** | HTML · JSON · WeasyPrint PDF (severity-ordered findings, cover, TOC, `CVSS X.X`, section page-breaks) |
 
@@ -80,7 +80,8 @@ Security assessment PDFs and AI exploitation reports are produced locally under 
 - Runtime crash monitoring  
 - `run-as` SharedPreferences / database extraction  
 - UIAutomator challenge-menu capture  
-- Frida SharedPreferences + Cipher hooks  
+- Frida SharedPreferences + Cipher hooks + best-effort lab SSL unpin / HTTP URL hooks  
+- Optional **mitmproxy** HTTP(S) capture (cleartext / sensitive headers & bodies)  
 - Logcat secrets (Luhn-checked PANs; tombstone noise filtered)  
 
 ### AI exploitation (web UI)
@@ -91,7 +92,7 @@ Security assessment PDFs and AI exploitation reports are produced locally under 
 - **BYOK**: paste an API key in the Exploit form — used only for that HTTP request (Authorization header). Keys are **not** written to reports, prompts, git, or server logs.  
 - **What the LLM sees**: finding JSON (rule/title/severity/evidence/recommendation), package metadata, device model/serial, and prior step stdout. The APK binary itself is **not** uploaded.  
 
-**Analyzer count:** **27** registered tools (`python main.py --list-analyzers`).
+**Analyzer count:** **28** registered tools (`python main.py --list-analyzers`).
 
 ---
 
@@ -132,6 +133,7 @@ design/       brand assets (logo)
 - Python **3.10+**
 - `adb` on `PATH` (for dynamic analysis)
 - Optional: Frida (`frida-tools` + `frida-server` on device)
+- Optional: **mitmproxy** (`mitmdump` on `PATH`) for traffic capture
 - Optional: WeasyPrint (+ Pango libs on Debian/Kali) for PDFs
 
 ### Install
@@ -141,6 +143,8 @@ git clone https://github.com/MaybeKrom/androidsec-framework.git
 cd androidsec-framework
 pip install -r requirements.txt
 pip install weasyprint   # PDF export
+# Optional network capture:
+pip install 'mitmproxy>=10'
 ```
 
 ### CLI scan
@@ -203,8 +207,36 @@ python app.py
 | `runtime` | Dynamic | Launch + crash monitoring |
 | `backup_extractor` | Dynamic | `run-as` prefs/DB extraction |
 | `uiautomator` | Dynamic | UI / challenge menu dump |
-| `frida` | Dynamic | Runtime hooks |
+| `frida` | Dynamic | Runtime hooks + lab SSL unpin |
+| `mitmproxy` | Dynamic | Optional HTTP(S) traffic capture |
 | `log` | Dynamic | Sensitive logcat findings |
+
+---
+
+## Optional mitmproxy (lab traffic capture)
+
+Enable the `mitmproxy` analyzer in the web UI / CLI like other dynamic tools. Intended for **authorized lab apps** on Genymotion, the official emulator, or a rooted phone (KSU graduation-project framing).
+
+### Setup
+1. Install mitmproxy and ensure `mitmdump` is on `PATH`.
+2. Install the mitmproxy CA as a **user** certificate on the lab device/emulator (required for HTTPS). Many training apps trust user CAs or allow cleartext.
+3. Point the device HTTP proxy at the host:
+   - Android Emulator (AVD): often `10.0.2.2:8080`
+   - Genymotion: host bridge IP (or set `ANDROSEC_MITM_HOST` / `ANDROSEC_DEVICE_HINT=genymotion`)
+4. Prefer Genymotion / official emulator / rooted phone for Frida + TLS interception (android-x86 is often flaky for Frida).
+
+### Usage
+
+```bash
+# Offline / CI: parse a saved dump (JSON array, HAR, or NDJSON)
+export ANDROSEC_MITM_DUMP=/path/to/flows.json
+python main.py target.apk --only mitmproxy --no-adb
+
+# Live short capture during a dynamic scan (needs device + mitmdump)
+python main.py target.apk --only mitmproxy frida network ssl_pinning
+```
+
+Findings (`MITM_CLEARTEXT_HTTP`, `MITM_SENSITIVE_HEADER`, `MITM_SENSITIVE_BODY`, …) appear in the HTML/JSON/PDF report. AI exploit planning receives a `NETWORK_CAPTURE_CONTEXT` hint when mitmproxy rows exist — the evidence gate still treats generic TLS as **not** auto-exploitable via ADB echo theater.
 
 ---
 
@@ -228,8 +260,10 @@ python app.py
 ## Lab environment tips
 
 - Works well with VirtualBox **Kali + Android-x86** for ADB install/launch/logcat/content.  
-- **Frida** is often flaky on android-x86 — prefer Genymotion, the official emulator, or a rooted phone for Frida-heavy PoCs.  
-- Set `ANDROID_SERIAL` when multiple devices are connected.
+- **Frida** (and mitmproxy + pinning labs) are often flaky on android-x86 — prefer Genymotion, the official emulator, or a rooted phone.  
+- Frida analyzer retries attach and falls back to spawn; `scripts/runtime_monitor.js` includes best-effort OkHttp / TrustManager / HostnameVerifier lab unpin hooks.  
+- Set `ANDROID_SERIAL` when multiple devices are connected.  
+- Optional env: `ANDROSEC_MITM_DUMP`, `ANDROSEC_MITM_PORT`, `ANDROSEC_MITM_HOST`, `ANDROSEC_FRIDA_SECONDS`.
 
 ---
 

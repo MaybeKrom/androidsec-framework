@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from reporter.report_generator import ReportGenerator, masvs_cell
+from reporter.report_generator import ReportGenerator, masvs_cell, sorted_findings
 from rules.owasp_mapper import (
     MASVS_V2_IDS,
     OWASPMapper,
@@ -21,6 +21,94 @@ def _report(findings):
     }
     summary = {"level": "LOW", "score": 0, "counts": {}}
     return ReportGenerator(metadata, [], findings, summary)
+
+
+class TestFindingSeverityOrder(unittest.TestCase):
+    def test_sorted_findings_is_severity_first(self):
+        findings = [
+            {
+                "severity": "Low",
+                "rule_id": "COMPONENT_PROVIDER",
+                "title": "Exported provider",
+                "evidence": "content://lab.notes/notes",
+            },
+            {
+                "severity": "Info",
+                "rule_id": "LAB_CHALLENGE",
+                "title": "Lab inventory",
+                "evidence": "n/a",
+            },
+            {
+                "severity": "Critical",
+                "rule_id": "SECRET_AWS_KEY",
+                "title": "AWS key format",
+                "evidence": "AKIAIOSFODNN7EXAMPLE [format-only]",
+            },
+            {
+                "severity": "High",
+                "rule_id": "CODE_TRUST_ALL_CERTS",
+                "title": "Trust all",
+                "evidence": "TrustAll",
+            },
+            {
+                "severity": "Medium",
+                "rule_id": "MANIFEST_CLEARTEXT",
+                "title": "Cleartext",
+                "evidence": "usesCleartextTraffic=true",
+            },
+        ]
+        ordered = sorted_findings(findings)
+        self.assertEqual(
+            [f["severity"] for f in ordered],
+            ["Critical", "High", "Medium", "Low", "Info"],
+        )
+        # Within the same severity band, higher exploit priority still wins.
+        same_sev = [
+            {
+                "severity": "High",
+                "rule_id": "CODE_TRUST_ALL_CERTS",
+                "title": "Trust all",
+                "evidence": "TrustAll",
+            },
+            {
+                "severity": "High",
+                "rule_id": "COMPONENT_PROVIDER",
+                "title": "Exported provider",
+                "evidence": "content://lab.notes/notes",
+            },
+        ]
+        within = sorted_findings(same_sev)
+        self.assertEqual(within[0]["rule_id"], "COMPONENT_PROVIDER")
+        self.assertEqual(within[1]["rule_id"], "CODE_TRUST_ALL_CERTS")
+
+    def test_html_and_pdf_list_critical_before_low(self):
+        findings = [
+            {
+                "severity": "Low",
+                "confidence": "High",
+                "rule_id": "COMPONENT_PROVIDER",
+                "title": "Low-sev provider",
+                "evidence": "content://x",
+                "recommendation": "Lock down",
+                "masvs": "MASVS-PLATFORM-1",
+            },
+            {
+                "severity": "Critical",
+                "confidence": "High",
+                "rule_id": "WEBVIEW_JS_BRIDGE",
+                "title": "Critical WebView",
+                "evidence": "addJavascriptInterface",
+                "recommendation": "Remove bridge",
+                "masvs": "MASVS-PLATFORM-2",
+            },
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            html_path = os.path.join(tmp, "security_report_sample.html")
+            _report(findings).save_html(html_path)
+            html_doc = Path(html_path).read_text(encoding="utf-8")
+            pdf_doc = _report(findings).render_pdf_html()
+        self.assertLess(html_doc.index("Critical WebView"), html_doc.index("Low-sev provider"))
+        self.assertLess(pdf_doc.index("Critical WebView"), pdf_doc.index("Low-sev provider"))
 
 
 class TestMasvsLinks(unittest.TestCase):

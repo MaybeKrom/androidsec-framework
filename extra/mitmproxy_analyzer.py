@@ -3,9 +3,10 @@
 Capture modes (first match wins):
 1. Offline: parse ``ANDROSEC_MITM_DUMP`` (JSON flow list, HAR, or NDJSON).
 2. Live (best-effort): if a device is ready, automatically set the device
-   global HTTP proxy via ADB, start ``mitmdump`` when needed, launch the
-   package briefly, dump flows under the report/output dir, then always clear
-   the proxy in ``finally``.
+   global HTTP proxy via ADB, start ``mitmdump`` with
+   ``extra/mitmproxy_addons/loader.py`` when needed, launch the package
+   briefly, dump flows under the report/output dir, then always clear the
+   proxy in ``finally``.
 3. Otherwise skip — never fails the whole scan.
 
 Lab-only: Genymotion / emulator / rooted phone with mitmproxy CA installed
@@ -20,11 +21,20 @@ import re
 import shutil
 import socket
 import subprocess
-import tempfile
 import time
 from urllib.parse import urlparse
 
 from analyzers.utils import device_ready
+
+try:
+    from extra.mitmproxy_addons import loader_script_path as _addons_loader_path
+except Exception:  # pragma: no cover - package layout fallback
+    def _addons_loader_path() -> str:
+        return os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "mitmproxy_addons",
+            "loader.py",
+        )
 
 _SENSITIVE_HEADER = re.compile(
     r"(?i)^(authorization|cookie|x-api-key|x-auth-token|api-key|proxy-authorization)$"
@@ -136,8 +146,17 @@ def _normalize_flow(obj: dict) -> dict | None:
     return None
 
 
+def _is_addon_record(obj: dict) -> bool:
+    kind = obj.get("androsec")
+    return kind in ("mitm_finding", "mitm_endpoint", "mitm_report")
+
+
 def parse_mitm_dump(raw: str) -> list[dict]:
-    """Parse HAR, JSON array, single JSON object, or NDJSON into normalized flows."""
+    """Parse HAR, JSON array, single JSON object, or NDJSON into normalized flows.
+
+    Addon JSON lines (``androsec: mitm_*``) are ignored here — use
+    ``parse_addon_output``.
+    """
     text = (raw or "").strip()
     if not text:
         return []
@@ -151,10 +170,14 @@ def parse_mitm_dump(raw: str) -> list[dict]:
         data = None
 
     if isinstance(data, dict):
+        if _is_addon_record(data):
+            return []
         if "log" in data and "entries" in (data.get("log") or {}):
             return list(_iter_flows_from_har(data))
         if "flows" in data and isinstance(data["flows"], list):
             for item in data["flows"]:
+                if isinstance(item, dict) and _is_addon_record(item):
+                    continue
                 norm = _normalize_flow(item)
                 if norm:
                     flows.append(norm)
@@ -164,6 +187,8 @@ def parse_mitm_dump(raw: str) -> list[dict]:
 
     if isinstance(data, list):
         for item in data:
+            if isinstance(item, dict) and _is_addon_record(item):
+                continue
             norm = _normalize_flow(item)
             if norm:
                 flows.append(norm)
@@ -178,10 +203,90 @@ def parse_mitm_dump(raw: str) -> list[dict]:
             obj = json.loads(line)
         except json.JSONDecodeError:
             continue
+        if isinstance(obj, dict) and _is_addon_record(obj):
+            continue
         norm = _normalize_flow(obj)
         if norm:
             flows.append(norm)
     return flows
+
+
+def parse_addon_output(raw: str) -> tuple[list[dict], list[str], list[dict]]:
+    """Parse addon NDJSON into findings, report lines, and endpoint records.
+
+    Returns ``(findings, report_lines, endpoints)`` where findings are
+    ``{rule_id, evidence}`` rows for the existing MITM_* pipeline.
+    """
+    findings: list[dict] = []
+    reports: list[str] = []
+    endpoints: list[dict] = []
+    seen: set[str] = set()
+
+    text = (raw or "").strip()
+    if not text:
+        return findings, reports, endpoints
+
+    def _consume(obj: dict) -> None:
+        kind = obj.get("androsec")
+        if kind == "mitm_finding":
+            rule_id = str(obj.get("rule_id") or "").strip()
+            evidence = str(obj.get("evidence") or "").strip()
+            if not rule_id or not evidence:
+                return
+            key = f"{rule_id}:{evidence}"
+            if key in seen:
+                return
+            seen.add(key)
+            findings.append({"rule_id": rule_id, "evidence": evidence})
+        elif kind == "mitm_endpoint":
+            endpoints.append(obj)
+        elif kind == "mitm_report":
+            report = str(obj.get("report") or "").strip()
+            if report:
+                reports.append(report)
+
+    # Full JSON document
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        data = None
+
+    if isinstance(data, dict):
+        _consume(data)
+        return findings, reports, endpoints
+    if isinstance(data, list):
+        for item in data:
+            if isinstance(item, dict):
+                _consume(item)
+        return findings, reports, endpoints
+
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or not line.startswith("{"):
+            continue
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(obj, dict):
+            _consume(obj)
+    return findings, reports, endpoints
+
+
+def merge_mitm_findings(*groups: list[dict]) -> list[dict]:
+    """Dedupe finding dicts by rule_id + evidence."""
+    merged: list[dict] = []
+    seen: set[str] = set()
+    for group in groups:
+        for item in group or []:
+            rule_id = str(item.get("rule_id") or "")
+            evidence = str(item.get("evidence") or "")
+            key = f"{rule_id}:{evidence}"
+            if not rule_id or key in seen:
+                continue
+            seen.add(key)
+            merged.append({"rule_id": rule_id, "evidence": evidence})
+    return merged
 
 
 def analyze_flows(flows: list[dict]) -> tuple[list[str], list[dict]]:
@@ -401,36 +506,20 @@ def resolve_dump_dir() -> str:
     return os.path.join(base, "output_reports")
 
 
-def _mitmdump_addon_source() -> str:
-    return r"""
-from mitmproxy import http
-import json
-
-def response(flow: http.HTTPFlow):
-    req = flow.request
-    headers = [[k, v] for k, v in req.headers.items(multi=True)]
-    obj = {
-        "request": {
-            "method": req.method,
-            "url": req.pretty_url,
-            "headers": headers,
-            "content": req.get_text(strict=False) or "",
-        },
-        "response": {
-            "status_code": flow.response.status_code if flow.response else None,
-            "text": (flow.response.get_text(strict=False) if flow.response else "") or "",
-        },
-    }
-    print(json.dumps(obj), flush=True)
-"""
+def resolve_addon_loader() -> str | None:
+    """Return path to ``mitmproxy_addons/loader.py`` when present."""
+    path = _addons_loader_path()
+    return path if path and os.path.isfile(path) else None
 
 
 def _live_capture(package: str, dump_path: str) -> tuple[bool, str]:
     """Best-effort mitmdump capture with automatic device proxy set/clear.
 
-    Always clears ``global http_proxy`` in ``finally`` so a failed capture never
-    leaves the lab device proxying. Failures return ``(False, message)`` — callers
-    skip network capture without failing the whole scan.
+    Starts ``mitmdump -s extra/mitmproxy_addons/loader.py`` so practical addons
+    (sensitive data, cleartext HTTP, API endpoints, auth headers) emit JSON
+    findings alongside the flow dump. Always clears ``global http_proxy`` in
+    ``finally``. Failures return ``(False, message)`` — callers skip network
+    capture without failing the whole scan.
     """
     mitmdump = shutil.which("mitmdump")
     port = _DEFAULT_PORT
@@ -438,19 +527,15 @@ def _live_capture(package: str, dump_path: str) -> tuple[bool, str]:
     started_mitmdump = False
     proc = None
     out_f = None
-    addon_path = None
+    addon_path = resolve_addon_loader()
 
     try:
         reuse_existing = _port_is_listening(port)
         if not reuse_existing:
             if not mitmdump:
                 return False, "mitmdump not on PATH and nothing listening on proxy port"
-
-            with tempfile.NamedTemporaryFile(
-                "w", suffix="_androsec_mitm.py", delete=False
-            ) as handle:
-                handle.write(_mitmdump_addon_source())
-                addon_path = handle.name
+            if not addon_path:
+                return False, "mitmproxy addon loader missing (extra/mitmproxy_addons/loader.py)"
 
             out_f = open(dump_path, "w", encoding="utf-8")
             proc = subprocess.Popen(
@@ -494,7 +579,7 @@ def _live_capture(package: str, dump_path: str) -> tuple[bool, str]:
                 pass
 
         time.sleep(max(3, _LIVE_SECONDS))
-        mode = "reused listener" if reuse_existing else "started mitmdump"
+        mode = "reused listener" if reuse_existing else f"started mitmdump -s {os.path.basename(addon_path or 'loader.py')}"
         return True, (
             f"live capture → {dump_path} (proxy {host}:{port}; {host_reason}; {mode})"
         )
@@ -519,11 +604,6 @@ def _live_capture(package: str, dump_path: str) -> tuple[bool, str]:
             try:
                 out_f.close()
             except Exception:
-                pass
-        if addon_path:
-            try:
-                os.remove(addon_path)
-            except OSError:
                 pass
 
 
@@ -626,8 +706,35 @@ def run(ctx):
 
     flows = parse_mitm_dump(dump_text)
     detail_lines, flow_findings = analyze_flows(flows)
+    addon_findings, addon_reports, addon_endpoints = parse_addon_output(dump_text)
+
     lines.extend(detail_lines)
-    findings.extend(flow_findings)
+    for report in addon_reports:
+        lines.append(report)
+    if addon_endpoints and not addon_reports:
+        # Offline / mixed dumps may contain endpoint records without a report block.
+        try:
+            from extra.mitmproxy_addons.api_endpoint_logger import format_endpoint_report
+
+            lines.append(format_endpoint_report(addon_endpoints))
+        except Exception:
+            lines.append(f"[i] Unique endpoints from addons: {len(addon_endpoints)}")
+
+    # Prefer union of flow analysis + addon JSON (deduped). Offline dumps without
+    # addon lines still work via analyze_flows alone.
+    findings.extend(merge_mitm_findings(flow_findings, addon_findings))
+
+    # If both paths only produced traffic summaries, keep a single summary.
+    summaries = [f for f in findings if f.get("rule_id") == "MITM_TRAFFIC_SUMMARY"]
+    others = [f for f in findings if f.get("rule_id") != "MITM_TRAFFIC_SUMMARY"]
+    if others and summaries:
+        findings = others
+    elif len(summaries) > 1:
+        findings = others + summaries[:1]
+
+    loader = resolve_addon_loader()
+    if loader and "live" in source:
+        lines.append(f"[*] Addons: mitmdump -s {loader}")
     if source:
         lines.append(f"[*] Source: {source}")
 

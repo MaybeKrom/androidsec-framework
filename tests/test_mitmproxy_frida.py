@@ -20,6 +20,9 @@ from webapp import exploit_grounding as g
 FIXTURE = os.path.join(
     os.path.dirname(__file__), "fixtures", "mitm_flows_sample.json"
 )
+ADDON_FIXTURE = os.path.join(
+    os.path.dirname(__file__), "fixtures", "mitm_addon_findings.ndjson"
+)
 
 
 class MitmproxyAnalyzerTests(unittest.TestCase):
@@ -203,6 +206,7 @@ class MitmproxyAutoProxyTests(unittest.TestCase):
 
     def test_live_capture_sets_proxy_before_and_clears_after(self):
         order = []
+        popen_cmds = []
 
         def fake_set(host, port):
             order.append(("set", f"{host}:{port}"))
@@ -215,6 +219,10 @@ class MitmproxyAutoProxyTests(unittest.TestCase):
         fake_proc = mock.Mock()
         fake_proc.poll.return_value = None
         fake_proc.wait.return_value = 0
+
+        def fake_popen(cmd, *args, **kwargs):
+            popen_cmds.append(list(cmd))
+            return fake_proc
 
         with tempfile.TemporaryDirectory() as tmp:
             dump_path = os.path.join(tmp, "flows.ndjson")
@@ -230,7 +238,7 @@ class MitmproxyAutoProxyTests(unittest.TestCase):
             ), mock.patch(
                 "extra.mitmproxy_analyzer.clear_device_http_proxy", side_effect=fake_clear
             ), mock.patch(
-                "extra.mitmproxy_analyzer.subprocess.Popen", return_value=fake_proc
+                "extra.mitmproxy_analyzer.subprocess.Popen", side_effect=fake_popen
             ), mock.patch(
                 "extra.mitmproxy_analyzer._adb_cmd", return_value=self._completed(0)
             ), mock.patch(
@@ -249,6 +257,11 @@ class MitmproxyAutoProxyTests(unittest.TestCase):
         self.assertIn(("set", "10.0.2.2:8080"), order)
         self.assertIn(("clear", ":0"), order)
         fake_proc.terminate.assert_called()
+        self.assertTrue(popen_cmds)
+        self.assertIn("-s", popen_cmds[0])
+        script = popen_cmds[0][popen_cmds[0].index("-s") + 1]
+        self.assertTrue(script.endswith("loader.py"))
+        self.assertTrue(os.path.isfile(script))
 
     def test_live_capture_clears_proxy_when_set_fails(self):
         order = []
@@ -367,6 +380,137 @@ class MitmproxyAutoProxyTests(unittest.TestCase):
         env["ANDROSEC_OUTPUT_DIR"] = "/tmp/scan-out-only"
         with mock.patch.dict(os.environ, env, clear=True):
             self.assertEqual(mitmproxy_analyzer.resolve_dump_dir(), "/tmp/scan-out-only")
+
+
+class MitmproxyAddonsTests(unittest.TestCase):
+    """Unit-test addon logic + analyzer parsing (no mitmdump required)."""
+
+    def test_addon_scripts_exist(self):
+        from extra.mitmproxy_addons import addon_script_paths, loader_script_path
+
+        self.assertTrue(os.path.isfile(loader_script_path()))
+        paths = addon_script_paths()
+        self.assertEqual(len(paths), 4)
+        for path in paths:
+            self.assertTrue(os.path.isfile(path), path)
+
+    def test_sensitive_data_detector(self):
+        from extra.mitmproxy_addons.sensitive_data import analyze_flow
+
+        findings = analyze_flow(
+            {
+                "method": "POST",
+                "url": "https://api.lab/v1/token?api_key=xyz",
+                "headers": {"X-Debug": "nope"},
+                "request_body": "password=hunter2",
+                "response_body": "",
+            }
+        )
+        rules = {f["rule_id"] for f in findings}
+        self.assertIn("MITM_SENSITIVE_BODY", rules)
+        self.assertTrue(all(f.get("androsec") == "mitm_finding" for f in findings))
+        self.assertTrue(any("password" in json.dumps(f) for f in findings))
+        self.assertTrue(any("api_key" in json.dumps(f) or "api_key" in str(f.get("detail")) for f in findings))
+
+    def test_cleartext_http_detector(self):
+        from extra.mitmproxy_addons.cleartext_http import analyze_flow
+
+        http_hits = analyze_flow(
+            {"method": "GET", "url": "http://evil.lab/x", "headers": {}}
+        )
+        https_hits = analyze_flow(
+            {"method": "GET", "url": "https://safe.lab/x", "headers": {}}
+        )
+        self.assertEqual(len(http_hits), 1)
+        self.assertEqual(http_hits[0]["rule_id"], "MITM_CLEARTEXT_HTTP")
+        self.assertEqual(https_hits, [])
+
+    def test_api_endpoint_logger_unique(self):
+        from extra.mitmproxy_addons.api_endpoint_logger import (
+            analyze_flow,
+            format_endpoint_report,
+            summary_finding,
+        )
+
+        a = analyze_flow(
+            {"method": "get", "url": "https://api.lab/v1/accounts", "headers": {}}
+        )
+        b = analyze_flow(
+            {"method": "GET", "url": "https://api.lab/v1/accounts?x=1", "headers": {}}
+        )
+        self.assertEqual(len(a), 1)
+        self.assertEqual(a[0]["method"], "GET")
+        self.assertEqual(a[0]["path"], "/v1/accounts")
+        self.assertEqual(a[0]["host"], "api.lab")
+        # Same method+host+path (query ignored in path parse)
+        self.assertEqual(
+            (a[0]["method"], a[0]["host"], a[0]["path"]),
+            (b[0]["method"], b[0]["host"], b[0]["path"]),
+        )
+        report = format_endpoint_report(a)
+        self.assertIn("GET", report)
+        self.assertIn("api.lab", report)
+        summary = summary_finding(a)
+        self.assertEqual(summary["rule_id"], "MITM_TRAFFIC_SUMMARY")
+
+    def test_auth_header_capture(self):
+        from extra.mitmproxy_addons.auth_header_capture import analyze_flow
+
+        findings = analyze_flow(
+            {
+                "method": "GET",
+                "url": "https://api.lab/me",
+                "headers": {
+                    "Authorization": "Bearer abc",
+                    "Cookie": "session=1",
+                    "Accept": "application/json",
+                },
+            }
+        )
+        self.assertEqual(len(findings), 2)
+        headers = {f["detail"]["header"].lower() for f in findings}
+        self.assertEqual(headers, {"authorization", "cookie"})
+        self.assertTrue(all(f["rule_id"] == "MITM_SENSITIVE_HEADER" for f in findings))
+
+    def test_parse_addon_output_and_run_mixed_dump(self):
+        with open(ADDON_FIXTURE, encoding="utf-8") as handle:
+            raw = handle.read()
+        flows = mitmproxy_analyzer.parse_mitm_dump(raw)
+        self.assertEqual(len(flows), 1)
+        findings, reports, endpoints = mitmproxy_analyzer.parse_addon_output(raw)
+        rules = {f["rule_id"] for f in findings}
+        self.assertIn("MITM_CLEARTEXT_HTTP", rules)
+        self.assertIn("MITM_SENSITIVE_BODY", rules)
+        self.assertIn("MITM_SENSITIVE_HEADER", rules)
+        self.assertTrue(reports)
+        self.assertEqual(len(endpoints), 1)
+
+        ctx = mock.Mock()
+        ctx.apk.get_package.return_value = "com.android.insecurebankv2"
+        with mock.patch.dict(os.environ, {"ANDROSEC_MITM_DUMP": ADDON_FIXTURE}):
+            result = mitmproxy_analyzer.run(ctx)
+        self.assertFalse(result.get("skipped"))
+        out_rules = {f["rule_id"] for f in result["findings"]}
+        self.assertIn("MITM_CLEARTEXT_HTTP", out_rules)
+        self.assertIn("MITM_SENSITIVE_HEADER", out_rules)
+        # Sensitive hits present → traffic summary should not dominate
+        self.assertNotIn("MITM_TRAFFIC_SUMMARY", out_rules)
+        self.assertIn("API endpoints", result["output"])
+
+    def test_resolve_addon_loader(self):
+        path = mitmproxy_analyzer.resolve_addon_loader()
+        self.assertIsNotNone(path)
+        self.assertTrue(path.endswith("loader.py"))
+        self.assertTrue(os.path.isfile(path))
+
+    def test_offline_dump_still_works_without_addon_lines(self):
+        ctx = mock.Mock()
+        ctx.apk.get_package.return_value = "com.android.insecurebankv2"
+        with mock.patch.dict(os.environ, {"ANDROSEC_MITM_DUMP": FIXTURE}):
+            result = mitmproxy_analyzer.run(ctx)
+        self.assertFalse(result.get("skipped"))
+        rules = {f["rule_id"] for f in result["findings"]}
+        self.assertIn("MITM_CLEARTEXT_HTTP", rules)
 
 
 class FridaScriptTests(unittest.TestCase):

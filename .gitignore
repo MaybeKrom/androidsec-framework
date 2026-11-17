@@ -1,7 +1,10 @@
-# Python bytecode
+# Python bytecode / caches
 __pycache__/
 *.py[cod]
 *$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 # Virtual environments
 venv/
@@ -18,8 +21,9 @@ env/
 .DS_Store
 Thumbs.db
 
-# Output reports (regenerated on every scan)
+# Scan / exploit outputs (regenerated locally)
 output_reports/
+exploitations/
 
 # Per-scan assessment + exploitation evidence bundles
 scans/
@@ -33,8 +37,11 @@ webapp/meta/*.tmp
 # Decoded APK trees from the web UI
 webapp/decoded/
 
-# Saved finding reviews. API keys are not written here.
+# Runtime evidence and local DBs (API keys are never written here)
+webapp/evidence/**
+!webapp/evidence/.gitkeep
 webapp/reviews.sqlite
+webapp/exploits.sqlite
 
 # Androguard cache
 .androidsec/

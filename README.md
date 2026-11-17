@@ -128,12 +128,13 @@ Legacy dual-writes still land in `output_reports/` and `exploitations/` so exist
 ```text
 analyzers/    core static & dynamic scanners
 extra/        MSS extensions (SQL, crypto, SSL, intent, SBOM, lab, …)
+engine/       risk scoring
 rules/        severity catalog, OWASP MASVS map, dedupe
 reporter/     HTML + PDF security reports + scan_store (per-scan folders)
 scans/        per-scan assessment + evidence bundles (gitignored)
 webapp/       Flask UI + AI exploit module
 scripts/      Frida helpers
-tests/        unit tests
+demo/         optional Playwright walkthrough of the web UI
 design/       brand assets (logo)
 ```
 
@@ -295,20 +296,6 @@ Findings (`MITM_CLEARTEXT_HTTP`, `MITM_SENSITIVE_HEADER`, `MITM_SENSITIVE_BODY`,
 - Frida analyzer retries attach and falls back to spawn; `scripts/runtime_monitor.js` includes best-effort OkHttp / TrustManager / HostnameVerifier lab unpin hooks.  
 - Set `ANDROID_SERIAL` when multiple devices are connected.  
 - Optional env: `ANDROSEC_MITM_DUMP`, `ANDROSEC_MITM_PORT`, `ANDROSEC_MITM_HOST`, `ANDROSEC_MITM_OUT`, `ANDROSEC_DEVICE_HINT`, `ANDROSEC_FRIDA_SECONDS`.
-
----
-
-## Tests
-
-```bash
-python -m unittest discover -s tests -p "test_*.py"
-```
-
-Lab expected-findings seeds (precision / recall benchmark helpers):
-
-```text
-tests/fixtures/lab_expected_findings.json
-```
 
 ---
 

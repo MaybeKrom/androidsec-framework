@@ -829,8 +829,148 @@
     "severity": "Medium",
     "confidence": "Medium",
     "title": "WebView JavaScript enabled marker",
-    "description": "setJavaScriptEnabled reference.",
-    "recommendation": "Disable JS if unused."
+    "description": "The app calls setJavaScriptEnabled.",
+    "recommendation": "Disable JavaScript if the WebView does not need it."
+  },
+  "WEBVIEW_UNTRUSTED_FILE": {
+    "severity": "High",
+    "confidence": "High",
+    "title": "WebView loads local file with JavaScript",
+    "description": "An app WebView enables JavaScript and loads a file:// or external-storage URL. Another app that can write that file, or an exported activity that accepts the path, can run script in the WebView. This is not an addJavascriptInterface bridge.",
+    "recommendation": "Do not load attacker-writable files in a WebView. Disable JavaScript, and do not export the activity."
+  },
+  "AUTH_HARDCODED_BACKDOOR": {
+    "severity": "High",
+    "confidence": "High",
+    "title": "Hardcoded developer login",
+    "description": "The client contains a developer login path or username such as /devlogin or devadmin and compares or posts it.",
+    "recommendation": "Remove backdoor endpoints and hardcoded operator accounts from release builds."
+  },
+  "BROADCAST_SMS_SECRET": {
+    "severity": "High",
+    "confidence": "High",
+    "title": "Password sent by SMS",
+    "description": "App code builds an SMS body that includes a password and calls SmsManager.sendTextMessage.",
+    "recommendation": "Do not put passwords in SMS or log lines. Protect the receiver with a signature permission and do not export it."
+  },
+  "HARDCODED_COMPARE_SECRET": {
+    "severity": "High",
+    "confidence": "High",
+    "title": "Hardcoded secret compared to user input",
+    "description": "A long literal is compared with EditText input. The value is recoverable from the APK.",
+    "recommendation": "Do not ship the expected secret in the client. Verify it on a server."
+  },
+  "HARDCODED_API_CREDENTIAL": {
+    "severity": "High",
+    "confidence": "High",
+    "title": "Hardcoded API credentials",
+    "description": "A string literal contains an API key or API password.",
+    "recommendation": "Remove embedded API credentials. Issue them from a server after authentication."
+  },
+  "HARDCODED_PAYMENT_DATA": {
+    "severity": "High",
+    "confidence": "High",
+    "title": "Hardcoded payment data",
+    "description": "An INSERT statement in the app embeds a card-number-like value.",
+    "recommendation": "Do not ship card numbers or passwords inside SQL seed data."
+  },
+  "DEEPLINK_HOST_SUFFIX": {
+    "severity": "High",
+    "confidence": "High",
+    "title": "Host check uses endsWith",
+    "description": "A URL host is checked with String.endsWith. A name such as evilexample.com passes a check for example.com.",
+    "recommendation": "Compare the full host, or require a dot before the suffix (endsWith(\".example.com\"))."
+  },
+  "BROADCAST_SENSITIVE": {
+    "severity": "High",
+    "confidence": "High",
+    "title": "Implicit broadcast of credentials",
+    "description": "The app sends a broadcast whose action or extras mention credentials. Other apps can register for that action.",
+    "recommendation": "Use an explicit component or a signature permission. Do not put passwords in broadcasts."
+  },
+  "INTENT_REDIRECT": {
+    "severity": "High",
+    "confidence": "High",
+    "title": "Nested intent redirect",
+    "description": "The app reads a Parcelable intent extra and can be made to start an activity the caller chooses.",
+    "recommendation": "Do not start activities from untrusted Intent extras. Allowlist the target component."
+  },
+  "CODE_DYNAMIC_DEX_LOAD": {
+    "severity": "Critical",
+    "confidence": "High",
+    "title": "Loads code from external storage",
+    "description": "DexClassLoader loads an APK or DEX from a world-readable path such as /sdcard.",
+    "recommendation": "Do not load executable code from external storage."
+  },
+  "CODE_FOREIGN_PLUGIN_LOAD": {
+    "severity": "High",
+    "confidence": "High",
+    "title": "Loads classes from another app",
+    "description": "The app creates a package context for another installed app and calls loadClass.",
+    "recommendation": "Do not load code from other packages based on a name prefix."
+  },
+  "FILEPROVIDER_ROOT_PATH": {
+    "severity": "High",
+    "confidence": "High",
+    "title": "FileProvider exposes root-path",
+    "description": "provider_paths includes root-path, which can grant access to files outside the app directory when combined with a URI permission grant.",
+    "recommendation": "Remove root-path. Share only a specific files-path or cache-path."
+  },
+  "INTENT_BOOLEAN_BYPASS": {
+    "severity": "High",
+    "confidence": "High",
+    "title": "Boolean intent extra gates credentials",
+    "description": "A screen shows hardcoded credentials unless a boolean intent extra says otherwise. Callers can supply that extra.",
+    "recommendation": "Do not trust client intent extras for authentication. Require a server check."
+  },
+  "STORAGE_TEMP_FILE": {
+    "severity": "Medium",
+    "confidence": "Medium",
+    "title": "Credentials written to a temp file",
+    "description": "The app creates a temporary file and writes it with FileWriter.",
+    "recommendation": "Avoid storing secrets in temp files. Prefer app-private storage with no world access."
+  },
+  "STORAGE_SQLITE_SECRET": {
+    "severity": "Medium",
+    "confidence": "High",
+    "title": "Password column in SQLite",
+    "description": "App SQL mentions a password column while executing a statement.",
+    "recommendation": "Do not store plaintext passwords in SQLite."
+  },
+  "NATIVE_HARDCODED_SECRET": {
+    "severity": "High",
+    "confidence": "Medium",
+    "title": "Hardcoded secret in native library",
+    "description": "A small JNI library contains a non-symbol string that looks like a comparison secret.",
+    "recommendation": "Do not embed expected secrets in .so files. They are readable with strings."
+  },
+  "WEBVIEW_USER_URL": {
+    "severity": "High",
+    "confidence": "Medium",
+    "title": "WebView loads a user-controlled URL with JavaScript",
+    "description": "The same activity enables JavaScript, calls loadUrl, and reads an EditText. A file:// or javascript: URL can be loaded.",
+    "recommendation": "Allow only https URLs on an allowlist. Disable JavaScript if it is not required."
+  },
+  "STORAGE_PREF_SECRET": {
+    "severity": "Medium",
+    "confidence": "High",
+    "title": "Secret written to SharedPreferences",
+    "description": "A preference key that looks like a password or secret is passed to Editor.putString.",
+    "recommendation": "Do not store passwords in SharedPreferences. Use the Android Keystore or a server-side session."
+  },
+  "SQL_PROVIDER_QUERY_PASSTHROUGH": {
+    "severity": "High",
+    "confidence": "High",
+    "title": "ContentProvider query forwards selection",
+    "description": "A provider query method passes the caller selection into SQLiteQueryBuilder or SQLiteDatabase. If the provider is exported and has no read permission, other apps can inject SQL.",
+    "recommendation": "Use a projection map, ignore caller selection, or require a signature permission and set exported=false."
+  },
+  "CORRELATED_WEBVIEW_FILE": {
+    "severity": "High",
+    "confidence": "High",
+    "title": "Exported surface and file WebView",
+    "description": "The app enables JavaScript on a file or external-storage URL while also exporting activities.",
+    "recommendation": "Stop loading local files with JavaScript and remove android:exported from the statement activity."
   },
   "ENV_FRIDA_SERVER": {
     "severity": "Info",

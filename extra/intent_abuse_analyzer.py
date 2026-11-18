@@ -101,6 +101,20 @@ def run(ctx):
                 })
                 lines.append(f"  [!] sensitive action {action} → {full}")
 
+    # FileProvider root-path shares the entire filesystem when a grant is obtained.
+    try:
+        from analyzers.dex_scan import zip_text_files
+        for name, text in zip_text_files(ctx, suffixes=(".xml",)):
+            if "root-path" in text and ("provider" in name or "path" in name):
+                findings.append({
+                    "rule_id": "FILEPROVIDER_ROOT_PATH",
+                    "evidence": f"{name} contains root-path",
+                })
+                lines.append(f"  [!] FILEPROVIDER_ROOT_PATH: {name}")
+                break
+    except Exception:
+        pass
+
     if not findings:
         lines.append("  [-] No unprotected exported Intent surfaces detected.")
     else:

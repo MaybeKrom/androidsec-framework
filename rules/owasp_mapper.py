@@ -7,17 +7,22 @@ list of findings. Any id the mapping assigns, including one added later, becomes
 output directory is ``output_reports/``.
 
 ``MASVS_V2_IDS`` is the OWASP MASVS v2 control set, in document order. The
-explanations page has a section for each one. When a new id is added to
-``owasp_mapping.json``, add a matching ``<section id="...">`` if it is not
-already there. The report test fails while a mapped id has no section.
+explanations page shipped with the rules (``rules/masvs_explanations.html``)
+has a section for each one. When a new id is added to ``owasp_mapping.json``,
+add a matching ``<section id="...">`` if it is not already there. Every mapped
+id has to be one of those sections.
 """
 
 import html
 import json
+import os
 import re
+import shutil
 
 MASVS_ID = re.compile(r"^MASVS-[A-Z]+-\d+$")
 EXPLANATIONS_PAGE = "masvs_explanations.html"
+EXPLANATIONS_FILE = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), EXPLANATIONS_PAGE)
 
 # OWASP MASVS v2 controls, in the order of the MASVS document.
 MASVS_V2_IDS = (
@@ -64,6 +69,18 @@ def masvs_link(value):
     safe = html.escape(text, quote=True)
     return (f'<a href="{EXPLANATIONS_PAGE}#{safe}" '
             f'target="_blank">{safe}</a>')
+
+
+def install_explanations(directory):
+    """Copy the explanations page next to a report so the relative link resolves."""
+    if not directory:
+        return None
+    os.makedirs(directory, exist_ok=True)
+    dest = os.path.join(directory, EXPLANATIONS_PAGE)
+    if os.path.realpath(dest) == os.path.realpath(EXPLANATIONS_FILE):
+        return dest
+    shutil.copyfile(EXPLANATIONS_FILE, dest)
+    return dest
 
 
 def explanation_section_ids(html_text):

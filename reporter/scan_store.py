@@ -191,6 +191,8 @@ def write_assessment_bundle(
         flat_json = os.path.join(legacy_reports_dir, legacy_json_name)
         shutil.copyfile(legacy_html, flat_html)
         shutil.copyfile(legacy_json, flat_json)
+        from rules.owasp_mapper import install_explanations
+        install_explanations(legacy_reports_dir)
         paths["flat_html"] = flat_html
         paths["flat_json"] = flat_json
         # Web UI / jobs historically point at the flat dual-write path.

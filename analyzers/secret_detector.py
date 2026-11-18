@@ -48,6 +48,28 @@ def _annotate_secret(rule: str, evidence: str) -> str:
     return f"{evidence} [format-only — not validated against AWS]"
 
 
+# Loopback, unspecified, broadcast, and public resolvers are not secrets.
+_BORING_IPS = {
+    "127.0.0.1", "0.0.0.0", "255.255.255.255",
+    "8.8.8.8", "8.8.4.4", "1.1.1.1", "1.0.0.1",
+}
+
+
+def _is_boring_ip(text: str) -> bool:
+    match = re.search(r"\b(?:\d{1,3}\.){3}\d{1,3}\b", text or "")
+    if not match:
+        return False
+    ip = match.group(0)
+    if ip in _BORING_IPS:
+        return True
+    octets = ip.split(".")
+    try:
+        nums = [int(part) for part in octets]
+    except ValueError:
+        return False
+    return nums[0] == 127
+
+
 def _is_keypad_or_digit_noise(blob: str) -> bool:
     """Filter digit keypad / low-alphabet hex blobs (e.g. 01230120…)."""
     cleaned = re.sub(r"[^0-9a-fA-F]", "", blob or "")
@@ -109,6 +131,8 @@ def run(ctx):
 
                 for rule, pat in PATTERNS.items():
                     if pat.search(s):
+                        if rule == "SECRET_IP_ADDRESS" and _is_boring_ip(s):
+                            continue
                         L.append(f"  [!] {rule}: {_mask(s)}")
                         _emit(rule, _mask(s))
 

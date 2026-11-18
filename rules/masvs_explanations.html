@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MASVS explanations — androidsec</title>
+<style>
+body{font-family:Arial,sans-serif;margin:30px;background:#f4f6f9;color:#333;line-height:1.5}
+h1,h2,h3{color:#2c3e50}
+h1{margin-bottom:8px}
+h2{margin-top:0}
+.lead{margin-top:0;font-size:15px}
+.card{background:#fff;padding:20px;border-radius:8px;
+  box-shadow:0 2px 4px rgba(0,0,0,.08);margin-bottom:22px}
+a{color:#1a5276}
+.statement{font-size:17px;margin:0 0 10px}
+.toc h3{font-size:14px;margin:16px 0 2px}
+.toc a{display:block;padding:4px 0;text-decoration:none}
+.toc a:hover{text-decoration:underline}
+table{width:100%;border-collapse:collapse;margin-top:10px}
+th,td{padding:10px;border:1px solid #ddd;text-align:left;vertical-align:top;font-size:14px}
+th{background:#2c3e50;color:#fff;width:220px}
+ul{margin-top:6px}
+section{scroll-margin-top:16px}
+.back{font-size:13px;margin-bottom:0}
+</style>
+</head>
+<body>
+<h1 id="top">MASVS control explanations</h1>
+<p class="lead">These sections are the OWASP MASVS v2 controls, in document order. That set includes every id in <code>rules/owasp_mapping.json</code>. Control names follow the MASVS statements. Severity and CVSS figures are typical ranges for issues in that area. They are not scores assigned by the standard.</p>
+<p class="lead">The findings table links any value shaped like <code>MASVS-STORAGE-1</code> to the matching anchor on this page. A rule added to the mapping later links on the next report with no change to the report template. Every id in <code>rules/owasp_mapping.json</code> has a section here.</p>
+
+<div class="card toc">
+  <h2>Contents</h2>
+  <h3>Storage</h3>
+  <a href="#MASVS-STORAGE-1">MASVS-STORAGE-1 — Secure storage of sensitive data</a>
+  <a href="#MASVS-STORAGE-2">MASVS-STORAGE-2 — Leakage of sensitive data</a>
+  <h3>Cryptography</h3>
+  <a href="#MASVS-CRYPTO-1">MASVS-CRYPTO-1 — Strong cryptography</a>
+  <a href="#MASVS-CRYPTO-2">MASVS-CRYPTO-2 — Key management</a>
+  <h3>Authentication and authorization</h3>
+  <a href="#MASVS-AUTH-1">MASVS-AUTH-1 — Authentication protocols</a>
+  <a href="#MASVS-AUTH-2">MASVS-AUTH-2 — Local authentication</a>
+  <a href="#MASVS-AUTH-3">MASVS-AUTH-3 — Step-up authentication</a>
+  <h3>Network</h3>
+  <a href="#MASVS-NETWORK-1">MASVS-NETWORK-1 — Secure network traffic</a>
+  <a href="#MASVS-NETWORK-2">MASVS-NETWORK-2 — Identity pinning</a>
+  <h3>Platform interaction</h3>
+  <a href="#MASVS-PLATFORM-1">MASVS-PLATFORM-1 — IPC mechanisms</a>
+  <a href="#MASVS-PLATFORM-2">MASVS-PLATFORM-2 — WebViews</a>
+  <a href="#MASVS-PLATFORM-3">MASVS-PLATFORM-3 — User interface</a>
+  <h3>Code quality</h3>
+  <a href="#MASVS-CODE-1">MASVS-CODE-1 — Up-to-date platform</a>
+  <a href="#MASVS-CODE-2">MASVS-CODE-2 — Enforced app updates</a>
+  <a href="#MASVS-CODE-3">MASVS-CODE-3 — Vulnerable components</a>
+  <a href="#MASVS-CODE-4">MASVS-CODE-4 — Untrusted input</a>
+  <h3>Resilience</h3>
+  <a href="#MASVS-RESILIENCE-1">MASVS-RESILIENCE-1 — Platform integrity</a>
+  <a href="#MASVS-RESILIENCE-2">MASVS-RESILIENCE-2 — Anti-tampering</a>
+  <a href="#MASVS-RESILIENCE-3">MASVS-RESILIENCE-3 — Anti-static analysis</a>
+  <a href="#MASVS-RESILIENCE-4">MASVS-RESILIENCE-4 — Anti-dynamic analysis</a>
+  <h3>Privacy</h3>
+  <a href="#MASVS-PRIVACY-1">MASVS-PRIVACY-1 — Data minimization</a>
+  <a href="#MASVS-PRIVACY-2">MASVS-PRIVACY-2 — User identification</a>
+  <a href="#MASVS-PRIVACY-3">MASVS-PRIVACY-3 — Transparency</a>
+  <a href="#MASVS-PRIVACY-4">MASVS-PRIVACY-4 — User control</a>
+</div>
+
+<section class="card" id="MASVS-STORAGE-1">
+  <h2>MASVS-STORAGE-1</h2>
+  <p class="statement">The app securely stores sensitive data.</p>
+  <p>This control covers data the app stores on purpose: passwords, tokens, keys, personal data, and anything else that has to stay confidential. The location can be private app storage or a public folder. Either way, the data has to be protected. Unintentional leaks through backups and logs are MASVS-STORAGE-2.</p>
+  <p>androidsec maps embedded secrets to this control: cloud keys, API tokens, JWTs, hardcoded passwords, and similar strings shipped inside the package. A secret in the APK is stored where every copy of the app can be read.</p>
+  <h3>Security controls and focus areas</h3>
+  <ul>
+    <li>Sensitive values encrypted at rest, with the key in the Android Keystore rather than next to the ciphertext.</li>
+    <li>Files and databases created <code>MODE_PRIVATE</code>, not world-readable, and not in a public directory unless the data is meant to be public.</li>
+    <li>No passwords, API keys, private keys, or long-lived tokens in source, resources, assets, or native libraries.</li>
+    <li>Account data kept in a store that the platform protects, and wiped when the user logs out.</li>
+  </ul>
+  <h3>Common vulnerabilities and attacks</h3>
+  <ul>
+    <li>Hardcoded credentials and API keys recovered from <code>classes.dex</code>, strings, or a native library.</li>
+    <li>Plaintext passwords or tokens in <code>SharedPreferences</code> or a SQLite database the app created for that purpose.</li>
+    <li>A private key embedded so the app can decrypt or sign without a server.</li>
+    <li>Sensitive files written to shared external storage as the normal place the app keeps them.</li>
+  </ul>
+  <h3>How these issues are usually exploited</h3>
+  <p>The package is unpacked and the string, resource, or native blob is read. A cloud key or bearer token found there is used from anywhere, with no access to a device. A password stored in plaintext preferences is read from a backup, a debuggable process, or a rooted device, then reused against the account.</p>
+  <table>
+    <tr><th>OWASP Mobile Top 10 (2024)</th><td>M9 Insecure Data Storage. M1 Improper Credential Usage when the stored value is a password, token, or API key.</td></tr>
+    <tr><th>Typical severity</th><td>High to Critical for a live credential, cloud key, or private key. Low or Info for a value that does not grant access, such as a documentation IP embedded in the binary.</td></tr>
+    <tr><th>Suggested CVSS range</th><td>7.5–9.8 when the secret in the APK works over the network. About 5.5–7.5 when the plaintext store is only readable with local access.</td></tr>
+    <tr><th>Common CWEs</th><td>CWE-312 Cleartext Storage of Sensitive Information. CWE-798 Use of Hard-coded Credentials. CWE-522 Insufficiently Protected Credentials. CWE-311 Missing Encryption of Sensitive Data.</td></tr>
+  </table>
+  <p class="back"><a href="#top">Back to contents</a></p>
+</section>
+
+<section class="card" id="MASVS-STORAGE-2">
+  <h2>MASVS-STORAGE-2</h2>
+  <p class="statement">The app prevents leakage of sensitive data.</p>
+  <p>Some sensitive data is written on purpose. This control is the other case: data that ends up in a backup, a log, the clipboard, external storage, or a screenshot because of how an API works. The developer can usually turn that path off.</p>
+  <h3>Security controls and focus areas</h3>
+  <ul>
+    <li><code>android:allowBackup="false"</code>, or backup rules that exclude credential and token files, on apps that store secrets.</li>
+    <li>No secrets in <code>Log</code> output, crash reports, or analytics events.</li>
+    <li>App-specific directories instead of world-readable external storage.</li>
+    <li>Clipboard and screenshot exposure limited for screens that show passwords, card numbers, or one-time codes.</li>
+    <li>Careful use of the keyboard cache and WebView form history.</li>
+  </ul>
+  <h3>Common vulnerabilities and attacks</h3>
+  <ul>
+    <li>Insecure data storage: credentials, tokens, or statements written to external storage or to a world-readable file.</li>
+    <li>Backup leakage: <code>adb backup</code> or a device transfer includes the private preferences that hold secrets.</li>
+    <li>Sensitive values written to logcat, which any app with the right access, or a USB host, can read.</li>
+    <li>A password placed in an SMS body, or credentials written to a temporary file that another app or a backup can read.</li>
+    <li>Data left in the clipboard or in a task-switcher screenshot.</li>
+  </ul>
+  <h3>How these issues are usually exploited</h3>
+  <p>Someone with local access copies the backup archive or reads the file on shared storage. The app did not offer that file as an API. The leak is a side effect of the default backup flag, a log line, or a path under <code>/sdcard</code>. On a device that allows backup, the archive contains the same private files the app thought were sandboxed.</p>
+  <table>
+    <tr><th>OWASP Mobile Top 10 (2024)</th><td>M9 Insecure Data Storage. M6 Inadequate Privacy Controls when the leaked data identifies the user. M1 Improper Credential Usage when the leaked data is a password or token.</td></tr>
+    <tr><th>Typical severity</th><td>Low to High. A log of a non-secret path is Low or Info. A backup or external file that contains credentials or session material is High.</td></tr>
+    <tr><th>Suggested CVSS range</th><td>4.0–7.5. These issues almost always need local access, so the attack vector is local. The score rises when the file contains a reusable password or token.</td></tr>
+    <tr><th>Common CWEs</th><td>CWE-312 Cleartext Storage of Sensitive Information. CWE-921 Storage of Sensitive Data in a Mechanism without Access Control. CWE-532 Insertion of Sensitive Information into Log File. CWE-359 Exposure of Private Personal Information.</td></tr>
+  </table>
+  <p class="back"><a href="#top">Back to contents</a></p>
+</section>
+
+<section class="card" id="MASVS-CRYPTO-1">
+  <h2>MASVS-CRYPTO-1</h2>
+  <p class="statement">The app employs current strong cryptography and uses it according to industry best practices.</p>
+  <p>This control is about the algorithm, the mode, and how the primitive is used. Key generation and key storage are MASVS-CRYPTO-2. External references such as NIST SP 800-57 and SP 800-175B are the usual baseline: a current AEAD mode, a unique IV, and no broken ciphers.</p>
+  <p>androidsec maps ECB, DES, an embedded private key, and runtime use of the app’s crypto helper to this control. MD5 and SHA-1 used as security hashes are mapped to MASVS-CRYPTO-2 in the current rules. They are still failures of cryptographic practice and belong in the same conversation as this control.</p>
+  <h3>Security controls and focus areas</h3>
+  <ul>
+    <li>AES-GCM or another current authenticated mode. CBC only with a random IV and a separate integrity check.</li>
+    <li>No DES, 3DES, RC4, or ECB for confidential data.</li>
+    <li>Password storage with a password hashing function, not a fast hash such as MD5 or SHA-1.</li>
+    <li>Library APIs used as documented. No homemade XOR, no “encrypt then forget the MAC”. </li>
+  </ul>
+  <h3>Common vulnerabilities and attacks</h3>
+  <ul>
+    <li>ECB mode, which encrypts identical blocks to identical ciphertext and leaks structure.</li>
+    <li>DES or another short-key cipher that can be brute-forced.</li>
+    <li>A private key shipped in the app and used to decrypt data or to sign requests the server trusts.</li>
+    <li>Hashing a password with MD5 or SHA-1 and treating the digest as a verifier.</li>
+  </ul>
+  <h3>How these issues are usually exploited</h3>
+  <p>The transformation is identified from the code or from the ciphertext shape. ECB is confirmed when repeated plaintext blocks repeat in the ciphertext. DES is searched across its small key space. An embedded private key is extracted and used offline against captured ciphertext or to forge a signature. A fast password hash is attacked with a wordlist.</p>
+  <table>
+    <tr><th>OWASP Mobile Top 10 (2024)</th><td>M10 Insufficient Cryptography. M1 Improper Credential Usage when the broken primitive protects a password or token.</td></tr>
+    <tr><th>Typical severity</th><td>High to Critical when the data is a password, token, or message the server trusts. Low when a weak hash is used only as a non-security checksum.</td></tr>
+    <tr><th>Suggested CVSS range</th><td>7.0–9.1 when ciphertext or a forged signature can be produced from material in the APK. Lower when the weak algorithm protects data that is already public.</td></tr>
+    <tr><th>Common CWEs</th><td>CWE-327 Use of a Broken or Risky Cryptographic Algorithm. CWE-328 Use of Weak Hash. CWE-329 Generation of Predictable IV with CBC Mode. CWE-321 Use of Hard-coded Cryptographic Key when the private key is the embedded secret.</td></tr>
+  </table>
+  <p class="back"><a href="#top">Back to contents</a></p>
+</section>
+
+<section class="card" id="MASVS-CRYPTO-2">
+  <h2>MASVS-CRYPTO-2</h2>
+  <p class="statement">The app performs key management according to industry best practices.</p>
+  <p>A strong cipher still fails if the key is guessable, hardcoded, stored next to the ciphertext, or reused with a fixed IV. This control covers generation, storage, and protection of keys for their whole life. Algorithm choice itself is MASVS-CRYPTO-1. Weak random numbers matter here when they are used to generate a key.</p>
+  <h3>Security controls and focus areas</h3>
+  <ul>
+    <li>Keys generated with a cryptographically secure RNG and stored in the Android Keystore when the platform can hold them.</li>
+    <li>No key material, key-derivation password, or IV embedded in source, resources, or native libraries.</li>
+    <li>A unique, unpredictable IV for each encryption under the same key. A fixed all-zero IV is not that.</li>
+    <li>Keys kept out of preferences, databases, and logs that sit beside the ciphertext.</li>
+    <li>Rotation and deletion of keys that are no longer needed.</li>
+  </ul>
+  <h3>Common vulnerabilities and attacks</h3>
+  <ul>
+    <li>Hardcoded cryptographic keys and hardcoded credentials in the APK.</li>
+    <li>A static IV, or ECB mode, so identical plaintext blocks encrypt identically.</li>
+    <li>Keys derived from a short or public string, including a value shipped in the same app.</li>
+    <li><code>java.util.Random</code> or another non-cryptographic generator used where a key or token needs <code>SecureRandom</code>. That is primarily a cryptography-practice failure (MASVS-CRYPTO-1) and is mapped here when it affects key generation.</li>
+    <li>Weak or obsolete algorithms (DES, RC4, homemade XOR) used with those keys. The algorithm finding belongs to MASVS-CRYPTO-1; the key that makes the ciphertext readable belongs here.</li>
+  </ul>
+  <h3>How these issues are usually exploited</h3>
+  <p>The key string is recovered from the decompiled app or from its resources. The ciphertext is then read from the app’s private storage, a backup, or a preference file, and decrypted offline. A fixed IV lets an analyst confirm the algorithm with a known plaintext. No interaction with the server is required once both the key and the ciphertext are in hand.</p>
+  <table>
+    <tr><th>OWASP Mobile Top 10 (2024)</th><td>M10 Insufficient Cryptography. M1 Improper Credential Usage when the hardcoded secret is a password, token, or API key rather than a cipher key.</td></tr>
+    <tr><th>Typical severity</th><td>High to Critical when the recovered key decrypts passwords, tokens, or traffic. Low when a predictable generator is used for a value that is not secret.</td></tr>
+    <tr><th>Suggested CVSS range</th><td>7.0–9.1 when the key is in the distributed APK and the ciphertext is stored on the device. The attacker needs the ciphertext, so the score depends on whether that file is local-only or already backed up.</td></tr>
+    <tr><th>Common CWEs</th><td>CWE-321 Use of Hard-coded Cryptographic Key. CWE-798 Use of Hard-coded Credentials. CWE-329 Generation of Predictable IV with CBC Mode. CWE-330 Use of Insufficiently Random Values. CWE-327 Use of a Broken or Risky Cryptographic Algorithm.</td></tr>
+  </table>
+  <p class="back"><a href="#top">Back to contents</a></p>
+</section>
+
+<section class="card" id="MASVS-AUTH-1">
+  <h2>MASVS-AUTH-1</h2>
+  <p class="statement">The app uses secure authentication and authorization protocols and follows the relevant best practices.</p>
+  <p>Most apps send the user to a remote service that decides who they are and what they may do. The decision has to be enforced on that service. The app still has to use the protocol correctly: the right OAuth or session flow, tokens kept out of logs and URLs, and no feature gated only by a flag on the client.</p>
+  <p>No current androidsec rule maps to this id. The section is here so a later mapping entry links to a real anchor.</p>
+  <h3>Security controls and focus areas</h3>
+  <ul>
+    <li>Authorization checked on the server for every sensitive request, not only in the UI.</li>
+    <li>A current authentication protocol, with the redirect, state, and token handling that protocol requires.</li>
+    <li>Session tokens stored as sensitive data and sent only over TLS.</li>
+    <li>Account lockout or throttling against repeated password attempts, enforced by the service.</li>
+  </ul>
+  <h3>Common vulnerabilities and attacks</h3>
+  <ul>
+    <li>Broken authorization: the app hides a button, but the API still accepts the call.</li>
+    <li>Password spraying and credential stuffing against a login API that does not throttle.</li>
+    <li>OAuth redirects that an attacker can intercept, or tokens placed in a URL and then in logs.</li>
+    <li>A client-side role flag that a modified app can flip.</li>
+  </ul>
+  <h3>How these issues are usually exploited</h3>
+  <p>The attacker calls the API directly, or walks a list of common passwords against many accounts slowly enough to avoid a lockout. A token leaked in a referrer or a log is replayed. A patched client sends an admin action the server never re-checks.</p>
+  <table>
+    <tr><th>OWASP Mobile Top 10 (2024)</th><td>M3 Insecure Authentication/Authorization. M1 Improper Credential Usage when tokens or passwords are the thing that leaks.</td></tr>
+    <tr><th>Typical severity</th><td>High to Critical when another user’s data or actions are reachable. Medium when the flaw is limited to the attacker’s own session.</td></tr>
+    <tr><th>Suggested CVSS range</th><td>6.5–9.8. Remote attacks that need no prior account sit at the top. A flaw that still needs a valid login is lower.</td></tr>
+    <tr><th>Common CWEs</th><td>CWE-287 Improper Authentication. CWE-306 Missing Authentication for Critical Function. CWE-862 Missing Authorization. CWE-307 Improper Restriction of Excessive Authentication Attempts.</td></tr>
+  </table>
+  <p class="back"><a href="#top">Back to contents</a></p>
+</section>
+
+<section class="card" id="MASVS-AUTH-2">
+  <h2>MASVS-AUTH-2</h2>
+  <p class="statement">The app performs local authentication securely according to the platform best practices.</p>
+  <p>Biometrics and an on-device PIN have to be implemented with the platform APIs. A local check that only returns a Boolean the app itself can change does not authenticate anyone. Some apps have no server and rely entirely on this check.</p>
+  <p>androidsec maps a hardcoded developer login to this control. A client that accepts <code>/devlogin</code> or <code>devadmin</code> is doing that check itself. Anyone who unpacks the package learns the account, and the app never asks a server.</p>
+  <h3>Security controls and focus areas</h3>
+  <ul>
+    <li><code>BiometricPrompt</code> with a <code>CryptoObject</code> bound to a Keystore key, so a successful prompt is what unlocks the key.</li>
+    <li>A device credential fallback that uses the platform lock, not a PIN stored in preferences.</li>
+    <li>Failure handling that does not unlock data after a fixed number of local errors the app counts itself.</li>
+  </ul>
+  <h3>Common vulnerabilities and attacks</h3>
+  <ul>
+    <li>A biometric “check” that sets a Boolean the rest of the app trusts. Changing that Boolean skips the prompt.</li>
+    <li>The PIN or its hash stored in preferences next to the data it is supposed to protect.</li>
+    <li>Local-only authentication in front of data that is still readable in storage.</li>
+  </ul>
+  <h3>How these issues are usually exploited</h3>
+  <p>On a device the person controls, the method that reports success is changed so it returns success without a fingerprint. If the PIN is in a preference file, that file is read and the check is irrelevant. The data the prompt was meant to protect is then used directly.</p>
+  <table>
+    <tr><th>OWASP Mobile Top 10 (2024)</th><td>M3 Insecure Authentication/Authorization. M9 Insecure Data Storage when the PIN or the protected data is readable anyway.</td></tr>
+    <tr><th>Typical severity</th><td>High when the local check is the only thing in front of secrets or payments. Medium when the server still requires its own login.</td></tr>
+    <tr><th>Suggested CVSS range</th><td>4.0–7.5. The attacker is local. The score follows what the bypass reveals.</td></tr>
+    <tr><th>Common CWEs</th><td>CWE-287 Improper Authentication. CWE-288 Authentication Bypass Using an Alternate Path. CWE-693 Protection Mechanism Failure.</td></tr>
+  </table>
+  <p class="back"><a href="#top">Back to contents</a></p>
+</section>
+
+<section class="card" id="MASVS-AUTH-3">
+  <h2>MASVS-AUTH-3</h2>
+  <p class="statement">The app secures sensitive operations with additional authentication.</p>
+  <p>A transfer, a password change, or a new payee should ask for something beyond the session that is already open. That second step can be a biometric prompt, a PIN, a one-time code, or a confirmation on another channel. It has to be checked by the service that performs the action.</p>
+  <p>No current androidsec rule maps to this id.</p>
+  <h3>Security controls and focus areas</h3>
+  <ul>
+    <li>Step-up authentication on payments, password and email changes, and adding a beneficiary.</li>
+    <li>The server rejects the sensitive call when the step-up proof is missing or reused.</li>
+    <li>One-time codes that expire quickly and are not shown in a notification anyone on the lock screen can read.</li>
+  </ul>
+  <h3>Common vulnerabilities and attacks</h3>
+  <ul>
+    <li>The sensitive API trusts the existing session and never asks again.</li>
+    <li>A deep link or a client flag that marks a transaction as already confirmed.</li>
+    <li>One-time codes that can be replayed, or that are brute-forced because they are short and not rate-limited.</li>
+  </ul>
+  <h3>How these issues are usually exploited</h3>
+  <p>A stolen session token is enough to move money or change the recovery email, because nothing else is required. Or the client is told to skip the prompt and the server accepts the resulting request. A code intercepted from a notification or an SMS is submitted before the user is.</p>
+  <table>
+    <tr><th>OWASP Mobile Top 10 (2024)</th><td>M3 Insecure Authentication/Authorization.</td></tr>
+    <tr><th>Typical severity</th><td>High to Critical when the missing step-up protects money, account recovery, or personal data.</td></tr>
+    <tr><th>Suggested CVSS range</th><td>6.5–8.8. Impact is high and the attacker often already has a session, which keeps the score below an unauthenticated remote compromise.</td></tr>
+    <tr><th>Common CWEs</th><td>CWE-306 Missing Authentication for Critical Function. CWE-308 Use of Single-factor Authentication.</td></tr>
+  </table>
+  <p class="back"><a href="#top">Back to contents</a></p>
+</section>
+
+<section class="card" id="MASVS-NETWORK-1">
+  <h2>MASVS-NETWORK-1</h2>
+  <p class="statement">The app secures all network traffic according to the current best practices.</p>
+  <p>Data on the network has to be encrypted and the remote host has to be authenticated. TLS does both when the app keeps the platform defaults. This control fails when the app allows cleartext, trusts every certificate, or uses a client that skips hostname checks.</p>
+  <h3>Security controls and focus areas</h3>
+  <ul>
+    <li>HTTPS for every endpoint, including login, updates, and third-party calls made by the app.</li>
+    <li>A network security config that sets <code>cleartextTrafficPermitted="false"</code> and does not add user-installed trust anchors in release builds.</li>
+    <li>No custom <code>TrustManager</code> or <code>HostnameVerifier</code> that accepts any certificate or any hostname.</li>
+    <li>Platform HTTP clients rather than a raw socket that never performs a TLS handshake.</li>
+  </ul>
+  <h3>Common vulnerabilities and attacks</h3>
+  <ul>
+    <li>Cleartext traffic: login or session data sent over HTTP, so anyone on the path can read and change it.</li>
+    <li>A missing network security config on an older target SDK, which leaves cleartext permitted.</li>
+    <li>Certificate validation turned off, so the app accepts an attacker certificate.</li>
+    <li>Certificate pinning bypass is the related attack against <strong>MASVS-NETWORK-2</strong> (identity pinning), not against this control. Pinning restricts which certificate authorities are trusted after TLS is already required. A bypass hooks the pinning check so a proxy certificate is accepted. An app can fail NETWORK-1 and never implement pinning at all.</li>
+  </ul>
+  <h3>How these issues are usually exploited</h3>
+  <p>On a shared network, a proxy or a rogue access point presents itself as the server. If the app speaks cleartext, the proxy reads the body. If the app trusts all certificates, the proxy terminates TLS with its own certificate and the app continues. A hostname verifier that always returns true lets that certificate claim to be the real host.</p>
+  <table>
+    <tr><th>OWASP Mobile Top 10 (2024)</th><td>M5 Insecure Communication.</td></tr>
+    <tr><th>Typical severity</th><td>Medium to Critical. Cleartext that carries a password or session token is High or Critical. A missing network security config on an app that already uses HTTPS for every call is often Medium or Info.</td></tr>
+    <tr><th>Suggested CVSS range</th><td>5.9–9.1 when credentials or tokens cross a network an attacker can sit on. Adjacent-network attacks are usually lower than a remotely exploitable validation bypass that needs no special position.</td></tr>
+    <tr><th>Common CWEs</th><td>CWE-319 Cleartext Transmission of Sensitive Information. CWE-295 Improper Certificate Validation. CWE-297 Improper Validation of Certificate with Host Mismatch.</td></tr>
+  </table>
+  <p class="back"><a href="#top">Back to contents</a></p>
+</section>
+
+<section class="card" id="MASVS-NETWORK-2">
+  <h2>MASVS-NETWORK-2</h2>
+  <p class="statement">The app performs identity pinning for all remote endpoints under the developer's control.</p>
+  <p>MASVS-NETWORK-1 requires TLS and real certificate checks. This control goes further for hosts the developer operates: the app trusts only specific certificates or public keys, not every root the device trusts. That practice is certificate pinning or public-key pinning.</p>
+  <p>No current androidsec rule maps to this id. Cleartext, missing network security config, and trust-all clients are MASVS-NETWORK-1.</p>
+  <h3>Security controls and focus areas</h3>
+  <ul>
+    <li>Pins on the public key of the server certificate, with at least one backup pin.</li>
+    <li>Pins only for endpoints the developer controls. Public certificate authorities for the rest of the internet stay as they are.</li>
+    <li>A pin failure that aborts the connection. A failure that falls back to “trust any certificate” removes the control.</li>
+  </ul>
+  <h3>Common vulnerabilities and attacks</h3>
+  <ul>
+    <li>Certificate pinning bypass: a runtime hook makes the pin check return success so a proxy certificate is accepted.</li>
+    <li>Pins that are not actually checked, or that pin a certificate authority so broad that an attacker certificate still chains.</li>
+    <li>No pinning at all. That misses this control. It is not, by itself, a failure of MASVS-NETWORK-1 if TLS is otherwise correct.</li>
+  </ul>
+  <h3>How these issues are usually exploited</h3>
+  <p>The person who controls the device, or a process that can inject code into the app, changes the pinning method so every certificate passes. Traffic to the pinned host can then be decrypted by a local proxy. Without that bypass, a private certificate authority added to the device is not enough, which is the point of the control.</p>
+  <table>
+    <tr><th>OWASP Mobile Top 10 (2024)</th><td>M5 Insecure Communication.</td></tr>
+    <tr><th>Typical severity</th><td>Info to Medium when pinning is simply absent and TLS is otherwise sound. High when a bypass, combined with a weak trust decision, exposes credentials on a network the attacker can observe.</td></tr>
+    <tr><th>Suggested CVSS range</th><td>Missing pins are often unscored, or about 3.0–5.0, because the device trust store still has to be attacked. A bypass that lets a proxy read credentials is about 7.0–8.5 and depends on network position.</td></tr>
+    <tr><th>Common CWEs</th><td>CWE-295 Improper Certificate Validation. CWE-296 Improper Following of a Certificate's Chain of Trust.</td></tr>
+  </table>
+  <p class="back"><a href="#top">Back to contents</a></p>
+</section>
+
+<section class="card" id="MASVS-PLATFORM-1">
+  <h2>MASVS-PLATFORM-1</h2>
+  <p class="statement">The app uses IPC mechanisms securely.</p>
+  <p>Android apps expose data and actions through activities, services, broadcast receivers, and content providers. Other apps, and sometimes a web page, can call those components. This control requires every one of those entry points to check who is calling and to treat the supplied data as untrusted.</p>
+  <p>androidsec maps exported components, implicit broadcasts that carry credentials, nested intent redirects, a FileProvider <code>root-path</code>, and a boolean intent extra that gates a screen to this control.</p>
+  <h3>Security controls and focus areas</h3>
+  <ul>
+    <li>Explicit <code>android:exported</code> on every component, with exported left false unless another app must call it.</li>
+    <li>Custom permissions on exported components that handle sensitive data or actions.</li>
+    <li>Validation of intent extras, URI paths, and provider selection clauses before they are used.</li>
+    <li>Pending intents that are explicit and immutable.</li>
+    <li>Dangerous permissions requested only for a function the user can see and understand.</li>
+  </ul>
+  <h3>Common vulnerabilities and attacks</h3>
+  <ul>
+    <li>Exported activities, services, or receivers with no permission, so any app can start them.</li>
+    <li>Exported content providers that allow unauthenticated query, insert, update, or delete.</li>
+    <li>SQL injection through a provider <code>selection</code> or <code>sortOrder</code> argument.</li>
+    <li>Intent injection and intent redirection, where attacker-controlled extras change which component runs or which account is used.</li>
+    <li>Implicit intents that carry credentials or session tokens and can be received by another app.</li>
+    <li>Over-broad permissions (SMS, contacts, storage, location) that expand the impact of any later bug.</li>
+  </ul>
+  <h3>How these issues are usually exploited</h3>
+  <p>A second app on the device, or an adb caller in a lab, starts the exported component or queries its provider URI. If the provider builds SQL from the caller’s selection string, a UNION query can return rows the app never intended to expose, including usernames it recorded. An exported activity that trusts an extra can open a screen that should have required login.</p>
+  <table>
+    <tr><th>OWASP Mobile Top 10 (2024)</th><td>M8 Security Misconfiguration. M4 Insufficient Input/Output Validation when intent or provider input is used unsafely. M1 Improper Credential Usage when the component returns or accepts credentials.</td></tr>
+    <tr><th>Typical severity</th><td>Info to Critical. A declared permission with no demonstrated leak is often Medium or Info. An exported provider that returns account data with no permission is High or Critical.</td></tr>
+    <tr><th>Suggested CVSS range</th><td>3.1–9.8. Local-only access to an exported provider is commonly about 5.5–7.5. A browsable activity that a website can start, and that changes account state, sits at the top of the range.</td></tr>
+    <tr><th>Common CWEs</th><td>CWE-926 Improper Export of Android Application Components. CWE-927 Use of Implicit Intent for Sensitive Communication. CWE-285 Improper Authorization. CWE-89 SQL Injection when the provider concatenates the selection.</td></tr>
+  </table>
+  <p class="back"><a href="#top">Back to contents</a></p>
+</section>
+
+<section class="card" id="MASVS-PLATFORM-2">
+  <h2>MASVS-PLATFORM-2</h2>
+  <p class="statement">The app uses WebViews securely.</p>
+  <p>WebViews render HTML inside the app. A page loaded there runs with the app’s identity on screen. This control requires that JavaScript, file access, and any bridge to native code are limited to content the app trusts.</p>
+  <p>androidsec maps JavaScript bridges, file and universal access, a WebView that loads a <code>file://</code> URL or a URL taken from the user, and deep-link host checks to this control. A host check that uses <code>endsWith("example.com")</code> accepts <code>evilexample.com</code>.</p>
+  <h3>Security controls and focus areas</h3>
+  <ul>
+    <li>JavaScript disabled unless the page needs it, and then only for known origins.</li>
+    <li>No <code>addJavascriptInterface</code> object that exposes app methods to page script. On older APIs that interface is reachable by any script in the page.</li>
+    <li>File URL access and universal file access left off, so a page cannot read the app’s files.</li>
+    <li>A <code>WebViewClient</code> that does not load arbitrary redirects, and that ignores untrusted <code>javascript:</code> and <code>file:</code> URLs.</li>
+    <li>WebView content loaded over HTTPS, or from the app’s own assets, rather than from shared storage.</li>
+  </ul>
+  <h3>Common vulnerabilities and attacks</h3>
+  <ul>
+    <li>JavaScript bridge: a page calls a Java object that was added for the WebView and reaches native functions.</li>
+    <li>Loading attacker-controlled HTML from external storage or from an intent extra, with JavaScript enabled.</li>
+    <li>File-scheme theft when <code>setAllowUniversalAccessFromFileURLs</code> or <code>setAllowFileAccessFromFileURLs</code> is on.</li>
+    <li>Trusted-UI spoofing: the banking chrome stays visible while the page content is replaced.</li>
+  </ul>
+  <h3>How these issues are usually exploited</h3>
+  <p>The attacker writes an HTML file the WebView will load, or points the view at a URL they control. Script then runs inside the app. If a JavaScript interface is registered, the script calls those methods. If it is not, the result is still script execution and a forged screen, which is serious, but it is not native code execution. On current Android versions the file-access defaults block a page from reading other files unless the app turns those settings on.</p>
+  <table>
+    <tr><th>OWASP Mobile Top 10 (2024)</th><td>M8 Security Misconfiguration. M4 Insufficient Input/Output Validation for script injection into the WebView. M1 Improper Credential Usage if the bridge or the page can read stored credentials.</td></tr>
+    <tr><th>Typical severity</th><td>Medium to Critical. Content injection with JavaScript and no native bridge is often High. A bridge that reaches file, token, or account methods is Critical.</td></tr>
+    <tr><th>Suggested CVSS range</th><td>6.0–9.0 for a bridge into native code. About 5.0–7.0 when the impact is a forged screen and script that cannot leave the WebView.</td></tr>
+    <tr><th>Common CWEs</th><td>CWE-749 Exposed Dangerous Method or Function. CWE-79 Improper Neutralization of Input During Web Page Generation. CWE-829 Inclusion of Functionality from Untrusted Control Sphere.</td></tr>
+  </table>
+  <p class="back"><a href="#top">Back to contents</a></p>
+</section>
+
+<section class="card" id="MASVS-PLATFORM-3">
+  <h2>MASVS-PLATFORM-3</h2>
+  <p class="statement">The app uses the user interface securely.</p>
+  <p>Passwords, card numbers, and one-time codes have to appear on screen sometimes. This control is about that moment: the platform must not keep a screenshot, a notification, or an overlay that another person or another app can read.</p>
+  <p>No current androidsec rule maps to this id.</p>
+  <h3>Security controls and focus areas</h3>
+  <ul>
+    <li><code>FLAG_SECURE</code> on screens that show secrets, so recents and screenshots do not capture them.</li>
+    <li>Masked password fields, and no secret echoed into a notification, a toast, or an accessibility announcement that is broader than it needs to be.</li>
+    <li>Tapjacking protection (<code>filterTouchesWhenObscured</code>) on controls that confirm a payment or a permission.</li>
+  </ul>
+  <h3>Common vulnerabilities and attacks</h3>
+  <ul>
+    <li>A one-time code or a full card number left in the overview screenshot or the notification shade.</li>
+    <li>An overlay drawn by another app that covers a trusted button and records the tap.</li>
+    <li>Shoulder surfing of an unmasked secret on a shared device.</li>
+  </ul>
+  <h3>How these issues are usually exploited</h3>
+  <p>Someone with the unlocked device opens the recents list or the notification shade and reads the secret the app just displayed. Or a malicious app draws a transparent layer over the confirmation button and captures the moment the user taps. The app’s network security is irrelevant because the data was shown in the clear.</p>
+  <table>
+    <tr><th>OWASP Mobile Top 10 (2024)</th><td>M6 Inadequate Privacy Controls. M1 Improper Credential Usage when the displayed value is a password or one-time code. M8 Security Misconfiguration for a missing window flag.</td></tr>
+    <tr><th>Typical severity</th><td>Low to High. A card number or one-time code in a screenshot or notification is High. A masked field that is briefly visible is Low.</td></tr>
+    <tr><th>Suggested CVSS range</th><td>3.0–6.5. Access is local and usually needs the device in hand.</td></tr>
+    <tr><th>Common CWEs</th><td>CWE-359 Exposure of Private Personal Information. CWE-200 Exposure of Sensitive Information. CWE-1021 Improper Restriction of Rendered UI Layers.</td></tr>
+  </table>
+  <p class="back"><a href="#top">Back to contents</a></p>
+</section>
+
+<section class="card" id="MASVS-CODE-1">
+  <h2>MASVS-CODE-1</h2>
+  <p class="statement">The app requires an up-to-date platform version.</p>
+  <p>Each Android release fixes platform bugs and changes defaults: exported components, cleartext traffic, file access, and WebView behavior among them. An app that still allows very old versions keeps those old weaknesses available.</p>
+  <p>No current androidsec rule maps to this id. A low <code>targetSdkVersion</code> is mapped to MASVS-PLATFORM-1, because that old target changes how the platform treats components and permissions. The underlying issue is the one this control describes.</p>
+  <h3>Security controls and focus areas</h3>
+  <ul>
+    <li>A <code>targetSdkVersion</code> on a current API level, so current platform security defaults apply.</li>
+    <li>A <code>minSdkVersion</code> high enough that known-broken platform versions are refused.</li>
+    <li>Features that need a new security API guarded so they are not silently skipped on older devices.</li>
+  </ul>
+  <h3>Common vulnerabilities and attacks</h3>
+  <ul>
+    <li>Pre-Android 12 export defaults, where a component with an intent filter is exported unless the app says otherwise.</li>
+    <li>Cleartext allowed by default on older targets that have no network security config.</li>
+    <li>WebView and file-sharing behaviors that were tightened only for apps that target a newer SDK.</li>
+  </ul>
+  <h3>How these issues are usually exploited</h3>
+  <p>The attacker uses the older platform rule. A component the developer thought was private is still callable. Or cleartext is still permitted, and a network attacker reads traffic the developer assumed the OS would block. The exploit is the one that the newer default would have closed.</p>
+  <table>
+    <tr><th>OWASP Mobile Top 10 (2024)</th><td>M8 Security Misconfiguration.</td></tr>
+    <tr><th>Typical severity</th><td>Medium to High. The score follows the platform behavior that stays enabled, not the version number by itself.</td></tr>
+    <tr><th>Suggested CVSS range</th><td>4.0–7.5, matching the concrete weakness the old target leaves open.</td></tr>
+    <tr><th>Common CWEs</th><td>CWE-477 Use of Obsolete Function. CWE-1188 Insecure Default Initialization of Resource.</td></tr>
+  </table>
+  <p class="back"><a href="#top">Back to contents</a></p>
+</section>
+
+<section class="card" id="MASVS-CODE-2">
+  <h2>MASVS-CODE-2</h2>
+  <p class="statement">The app has a mechanism for enforcing app updates.</p>
+  <p>A critical bug can ship in a build that users keep installed. This control asks for a way to stop that build: a server that refuses old version codes, or a store update flow the app cannot skip.</p>
+  <p>No current androidsec rule maps to this id.</p>
+  <h3>Security controls and focus areas</h3>
+  <ul>
+    <li>The service rejects clients below a minimum version for sensitive calls.</li>
+    <li>A user-visible update path, including Play in-app updates or an equivalent, that blocks the app until the new build is installed.</li>
+    <li>Version checks that the server performs. A check that exists only inside the old binary can be removed with the bug.</li>
+  </ul>
+  <h3>Common vulnerabilities and attacks</h3>
+  <ul>
+    <li>No minimum version. Users stay on a build with a known authentication or crypto flaw.</li>
+    <li>A client-side “please update” dialog with a skip button, and a server that still accepts the old client.</li>
+  </ul>
+  <h3>How these issues are usually exploited</h3>
+  <p>The attacker uses the public details of a flaw in an old version. Because the server still talks to that version, the flaw remains reachable after a fix has been published. The attack is whatever the old bug allowed.</p>
+  <table>
+    <tr><th>OWASP Mobile Top 10 (2024)</th><td>M8 Security Misconfiguration.</td></tr>
+    <tr><th>Typical severity</th><td>Info to Medium on its own. High when a specific fixed vulnerability is still exploitable because old clients are accepted.</td></tr>
+    <tr><th>Suggested CVSS range</th><td>Often unscored. About 4.0–6.0 when old clients remain a supported way to reach a known bug. Score the known bug itself when it is the thing being exploited.</td></tr>
+    <tr><th>Common CWEs</th><td>CWE-1188 Insecure Default Initialization of Resource. The missing gate is a missing control; the weakness that remains is the CWE of that older bug.</td></tr>
+  </table>
+  <p class="back"><a href="#top">Back to contents</a></p>
+</section>
+
+<section class="card" id="MASVS-CODE-3">
+  <h2>MASVS-CODE-3</h2>
+  <p class="statement">The app only uses software components without known vulnerabilities.</p>
+  <p>A full review of every library is not always possible during a test. This control is the part that is visible from the outside: dependencies with a published vulnerability, identified by name and version.</p>
+  <p>No current androidsec rule maps to this id.</p>
+  <h3>Security controls and focus areas</h3>
+  <ul>
+    <li>Libraries and SDKs kept on versions that are not in a known-vulnerability feed.</li>
+    <li>A build that records dependency versions so a later advisory can be matched.</li>
+    <li>Native code and bundled WebView or TLS stacks included in that inventory, not only Java dependencies.</li>
+  </ul>
+  <h3>Common vulnerabilities and attacks</h3>
+  <ul>
+    <li>An old networking, parsing, or image library with a published remote or local bug.</li>
+    <li>A copied SDK that the app never updates, including one nested inside another SDK.</li>
+  </ul>
+  <h3>How these issues are usually exploited</h3>
+  <p>The attacker matches the library version in the APK to a public advisory and uses that advisory’s method against the app. The impact is the impact of the advisory: a parser crash, a TLS bypass, or code execution inside the app process.</p>
+  <table>
+    <tr><th>OWASP Mobile Top 10 (2024)</th><td>M2 Inadequate Supply Chain Security.</td></tr>
+    <tr><th>Typical severity</th><td>Low to Critical, taken from the vulnerability in the component and from whether the app actually calls the affected code.</td></tr>
+    <tr><th>Suggested CVSS range</th><td>Use the advisory’s CVSS, commonly 4.0–9.8, and lower it when the vulnerable function is not reachable from the app.</td></tr>
+    <tr><th>Common CWEs</th><td>CWE-1104 Use of Unmaintained Third Party Components. CWE-1395 Dependency on Vulnerable Third-Party Component. The specific bug inside the library has its own CWE.</td></tr>
+  </table>
+  <p class="back"><a href="#top">Back to contents</a></p>
+</section>
+
+<section class="card" id="MASVS-CODE-4">
+  <h2>MASVS-CODE-4</h2>
+  <p class="statement">The app validates and sanitizes all untrusted inputs.</p>
+  <p>Data arrives from the UI, from other apps, from the network, and from files. Any of it may have been changed by someone else. The app has to treat it as untrusted before it reaches a query, a path, a script, or a parser. This is what stops SQL injection, script injection, path traversal, and insecure deserialization.</p>
+  <p>androidsec maps a runtime crash on unexpected input to this control. A crash is a signal that the input was not handled. It is not, by itself, proof of injection.</p>
+  <h3>Security controls and focus areas</h3>
+  <ul>
+    <li>Query parameters bound, not concatenated, for SQL and similar stores.</li>
+    <li>Paths, URIs, and intent extras checked against an allow-list before use.</li>
+    <li>Structured data parsed with a safe parser, and deserialization limited to types the app expects.</li>
+    <li>WebView and deep-link parameters encoded before they are placed into HTML or a URL.</li>
+  </ul>
+  <h3>Common vulnerabilities and attacks</h3>
+  <ul>
+    <li>SQL injection through a content-provider selection, a search box, or a deep-link parameter. A provider that forwards the caller’s selection into SQLite is this case.</li>
+    <li><code>DexClassLoader</code> or <code>loadClass</code> running an APK, a DEX, or another app’s classes that the user or a second app can replace.</li>
+    <li>Path traversal that reads a file outside the directory the app meant to open.</li>
+    <li>Script injection when a parameter is written into a WebView or a local HTML page.</li>
+    <li>Insecure deserialization of an object graph the attacker supplied.</li>
+    <li>A crash on a malformed extra or response, which shows the failure path was not handled.</li>
+  </ul>
+  <h3>How these issues are usually exploited</h3>
+  <p>The attacker sends the unexpected value through whichever door accepts it: an intent extra, a link, a file name, or a server response the app trusts. If that value is glued into a query, the query returns extra rows. If it is glued into a path or a page, the app reads the wrong file or runs the supplied script. A crash is the weak form of the same mistake: the app did not define what should happen, and the process died instead.</p>
+  <table>
+    <tr><th>OWASP Mobile Top 10 (2024)</th><td>M4 Insufficient Input/Output Validation.</td></tr>
+    <tr><th>Typical severity</th><td>Medium to Critical. Injection that reads or changes other users’ data is Critical. A crash with no further impact is Medium or Low.</td></tr>
+    <tr><th>Suggested CVSS range</th><td>5.0–9.8. Remote injection into a query or a deserializer sits at the top. A local deep link that only crashes the app is near the bottom.</td></tr>
+    <tr><th>Common CWEs</th><td>CWE-20 Improper Input Validation. CWE-89 SQL Injection. CWE-79 Improper Neutralization of Input During Web Page Generation. CWE-22 Path Traversal. CWE-502 Deserialization of Untrusted Data.</td></tr>
+  </table>
+  <p class="back"><a href="#top">Back to contents</a></p>
+</section>
+
+<section class="card" id="MASVS-RESILIENCE-1">
+  <h2>MASVS-RESILIENCE-1</h2>
+  <p class="statement">The app validates the integrity of the platform.</p>
+  <p>Secure storage, biometrics, and the app sandbox assume the operating system has not been modified. This control asks the app to notice a compromised device: root, a custom image, an unlocked bootloader, or a failed device-integrity attestation. OWASP is explicit that the absence of this kind of check is not, by itself, a vulnerability. It is extra protection for a specific threat model. The rest of MASVS still has to hold.</p>
+  <h3>Security controls and focus areas</h3>
+  <ul>
+    <li>Play Integrity, or an equivalent attestation, verified on the server rather than only inside the app.</li>
+    <li>Local signals used as a hint: unexpected superuser binaries, test keys, <code>ro.debuggable</code>, known hook frameworks.</li>
+    <li>A response that matches the risk. A payment or a fresh token can be refused. A label that only says the device is rooted does not protect data.</li>
+  </ul>
+  <h3>Common vulnerabilities and attacks</h3>
+  <ul>
+    <li>Root detection that looks for a file path or the <code>su</code> binary and can be hidden by renaming files or by a runtime hook.</li>
+    <li>Root-detection bypass that flips the Boolean the app checks, while the real device stays privileged.</li>
+    <li>Emulator and debugger checks that are equally local and equally visible to the person running the app.</li>
+    <li>Treating “no root check” as if it were the same bug as an exported component or a hardcoded key. It is not. The finding is informational unless the check is the only gate on a sensitive action.</li>
+  </ul>
+  <h3>How these issues are usually exploited</h3>
+  <p>On a device the tester controls, the check is observed and then hidden: the file it looks for is absent from that path, or the method that returns the result is changed in memory. If the app only updates a text label, nothing further happens. If the same check is what allows a transfer or the release of a key, bypassing it reaches that function. The useful fix is to keep secrets and decisions on the server, and to verify device integrity there.</p>
+  <table>
+    <tr><th>OWASP Mobile Top 10 (2024)</th><td>M7 Insufficient Binary Protections.</td></tr>
+    <tr><th>Typical severity</th><td>Info to Low for “a root check exists” or “no root check exists”. Higher only when the check is the sole control in front of a sensitive operation, and then the severity follows that operation.</td></tr>
+    <tr><th>Suggested CVSS range</th><td>Usually unscored, or 0.0–3.0. A bypass that is the only gate on a sensitive function is scored with the impact of that function, not as a generic root finding.</td></tr>
+    <tr><th>Common CWEs</th><td>CWE-693 Protection Mechanism Failure. There is often no weakness CWE for the mere presence of a client-side check.</td></tr>
+  </table>
+  <p class="back"><a href="#top">Back to contents</a></p>
+</section>
+
+<section class="card" id="MASVS-RESILIENCE-2">
+  <h2>MASVS-RESILIENCE-2</h2>
+  <p class="statement">The app implements anti-tampering mechanisms.</p>
+  <p>The app runs on a device the user controls, so a modified package is easy to install. This control tries to detect changes to the original code and resources: signature checks, installer checks, and detection of a repackaged binary. As with the rest of resilience, missing these checks is additional risk for cheating, cloning, or a backdoored republish. It is not automatically a vulnerability.</p>
+  <p>This project also files <code>android:debuggable="true"</code> under this control. A debug build is a related client-side weakness: a debugger, or <code>run-as</code>, can read the app’s private files and change its behavior without root. That is active debug code left in the package. It is not the same thing as a missing signature check, and the explanation below keeps the two apart.</p>
+  <h3>Security controls and focus areas</h3>
+  <ul>
+    <li>Release builds with <code>android:debuggable="false"</code> and no debug logging of secrets.</li>
+    <li>Verification of the app’s signing certificate against the expected value, with the decision enforced somewhere the modified app cannot simply skip.</li>
+    <li>Detection of repackaging, attached debuggers, and instrumentation, used to protect specific business logic rather than as the only security control.</li>
+    <li>Server-side checks that do not trust a client that claims to be unmodified.</li>
+  </ul>
+  <h3>Common vulnerabilities and attacks</h3>
+  <ul>
+    <li>A release package that is still debuggable, so private storage can be read as the app user.</li>
+    <li>Tamper checks that compare a value inside the same binary the attacker is editing, and that therefore disappear in a rebuild.</li>
+    <li>Repackaging: the app is decoded, a method is patched, and the package is signed with a new key and installed.</li>
+    <li>Runtime patching of the check so the original package never has to be rebuilt.</li>
+  </ul>
+  <h3>How these issues are usually exploited</h3>
+  <p>For a debuggable package, a local user runs as the app and reads private preferences, databases, and files that the sandbox would otherwise hide. For a tamper check, the attacker either edits the method that performs the check and reinstalls the package, or changes the method’s result while the process is running. If the server still requires its own authentication, the modified client does not gain an account. If the check was the only thing standing in front of a local premium feature or a locally stored key, the modified client gets that feature or that key.</p>
+  <table>
+    <tr><th>OWASP Mobile Top 10 (2024)</th><td>M7 Insufficient Binary Protections for missing or bypassed tamper checks. M8 Security Misconfiguration for a package shipped with debugging enabled.</td></tr>
+    <tr><th>Typical severity</th><td>Info when the observation is only that no tamper check exists. High when a build that stores secrets is debuggable, because private data is then readable without root.</td></tr>
+    <tr><th>Suggested CVSS range</th><td>Missing tamper checks are often unscored. A debuggable build that exposes stored credentials to a local user is commonly about 5.0–7.5, depending on what those files contain.</td></tr>
+    <tr><th>Common CWEs</th><td>CWE-489 Active Debug Code. CWE-693 Protection Mechanism Failure. CWE-354 Improper Validation of Integrity Check Value.</td></tr>
+  </table>
+  <p class="back"><a href="#top">Back to contents</a></p>
+</section>
+
+<section class="card" id="MASVS-RESILIENCE-3">
+  <h2>MASVS-RESILIENCE-3</h2>
+  <p class="statement">The app implements anti-static analysis mechanisms.</p>
+  <p>Reading the app is usually the first step toward changing it. This control tries to make that reading slower: obfuscation, removal of readable names, and protection of string constants. OWASP is explicit that missing resilience measures are not vulnerabilities. They are extra layers for a threat model that needs them. The rest of MASVS still applies.</p>
+  <p>androidsec maps the presence of Frida, Xposed, debugger, and emulator checks to this id. Those checks are runtime signals, and the official home for anti-instrumentation is MASVS-RESILIENCE-4. In this project they are informational observations that some resilience code exists. Seeing the check is not a finding that the app is weak, and not seeing obfuscation is not the same kind of bug as an exported component.</p>
+  <h3>Security controls and focus areas</h3>
+  <ul>
+    <li>Release builds run through an obfuscator so class and method names are not a map of the business logic.</li>
+    <li>Strings that would otherwise name secrets, keys, or check locations are not left in plaintext in the binary.</li>
+    <li>Debug symbols and logging stripped from the release package.</li>
+  </ul>
+  <h3>Common vulnerabilities and attacks</h3>
+  <ul>
+    <li>A release build that decompiles to readable logic, including the location of keys and of security checks.</li>
+    <li>String extraction that recovers a key or a URL without fully understanding the code.</li>
+    <li>Treating “no obfuscation” as if it disclosed data by itself. The disclosure still requires a secret to have been stored in the program.</li>
+  </ul>
+  <h3>How these issues are usually exploited</h3>
+  <p>The package is decompiled and read. Names and strings point at the crypto helper, the password check, or the root check. That reading then feeds a real bug elsewhere: a hardcoded key, a Boolean check, or a trust decision. Obfuscation slows the reading. It does not fix the bug the reading finds.</p>
+  <table>
+    <tr><th>OWASP Mobile Top 10 (2024)</th><td>M7 Insufficient Binary Protections.</td></tr>
+    <tr><th>Typical severity</th><td>Info. Raise it only when the readable binary is what exposes a secret or a check that is the sole gate on a sensitive action, and then score that secret or that gate.</td></tr>
+    <tr><th>Suggested CVSS range</th><td>Usually unscored, or 0.0–3.0. Missing obfuscation is not given a high score on its own.</td></tr>
+    <tr><th>Common CWEs</th><td>CWE-693 Protection Mechanism Failure when a check meant to hinder analysis is bypassed. Missing obfuscation is not, by itself, a weakness CWE.</td></tr>
+  </table>
+  <p class="back"><a href="#top">Back to contents</a></p>
+</section>
+
+<section class="card" id="MASVS-RESILIENCE-4">
+  <h2>MASVS-RESILIENCE-4</h2>
+  <p class="statement">The app implements anti-dynamic analysis techniques.</p>
+  <p>Static reading is often paired with running the app under a debugger, a tracer, or an instrumentation toolkit. This control tries to detect that and to stop the process from being changed while it runs. As with the other resilience controls, its absence is not a vulnerability.</p>
+  <p>No current androidsec rule maps to this id. Observations that a Frida, Xposed, debug, or emulator check exists are filed under MASVS-RESILIENCE-3.</p>
+  <h3>Security controls and focus areas</h3>
+  <ul>
+    <li>Detection of a debugger, of common instrumentation frameworks, and of a modified runtime, with the result checked somewhere the same process cannot simply skip.</li>
+    <li>Server-side signals, such as an attestation result, used for decisions that matter.</li>
+    <li>No reliance on a single local Boolean as the only protection for a key or a payment.</li>
+  </ul>
+  <h3>Common vulnerabilities and attacks</h3>
+  <ul>
+    <li>A debugger or instrumentation check that looks for one process name or one file path.</li>
+    <li>A runtime hook that forces the check to report “clean” while the hook remains in place.</li>
+    <li>An emulator check used as if a passed check proved the user is the real customer.</li>
+  </ul>
+  <h3>How these issues are usually exploited</h3>
+  <p>The app is started under the tool it hoped to see, and the method that reports the tool is changed to report nothing. Traces and hooks then follow the login, the crypto call, or the certificate check. If those other controls are sound, the session still cannot be forged. If a local Boolean was the only gate, the hook removes it.</p>
+  <table>
+    <tr><th>OWASP Mobile Top 10 (2024)</th><td>M7 Insufficient Binary Protections.</td></tr>
+    <tr><th>Typical severity</th><td>Info to Low for a missing or bypassed local check. Higher only when that check is the only control in front of a sensitive operation.</td></tr>
+    <tr><th>Suggested CVSS range</th><td>Usually unscored, or 0.0–3.0. Score the operation behind the check when the check is its only gate.</td></tr>
+    <tr><th>Common CWEs</th><td>CWE-693 Protection Mechanism Failure.</td></tr>
+  </table>
+  <p class="back"><a href="#top">Back to contents</a></p>
+</section>
+
+<section class="card" id="MASVS-PRIVACY-1">
+  <h2>MASVS-PRIVACY-1</h2>
+  <p class="statement">The app minimizes access to sensitive data and resources.</p>
+  <p>The app should request only the data its function needs, and only after the user has agreed. Third-party SDKs are part of the app for this purpose: they must not collect before consent or ignore a refusal. Passing data down a chain of SDKs the developer did not review is in scope.</p>
+  <p>No current androidsec rule maps to this id. Broad dangerous permissions are mapped to MASVS-PLATFORM-1, because that is how the platform exposes the capability. The privacy question is whether the app needed the data at all.</p>
+  <h3>Security controls and focus areas</h3>
+  <ul>
+    <li>Permissions and data fields limited to what the current feature uses.</li>
+    <li>Consent collected before an SDK starts, and honored by that SDK.</li>
+    <li>No onward sharing with another app or another SDK beyond what the user was told.</li>
+  </ul>
+  <h3>Common vulnerabilities and attacks</h3>
+  <ul>
+    <li>An SDK that collects identifiers or location before the consent dialog, or after the user refuses.</li>
+    <li>A permission requested “just in case”, which widens the damage of any later bug.</li>
+    <li>Data handed to a library that sends it to its own backend.</li>
+  </ul>
+  <h3>How these issues are usually exploited</h3>
+  <p>The collection does not need a further break-in. The app, or an SDK inside it, sends the data because that is what the code does. Traffic or the SDK’s configuration shows identifiers, contacts, or location leaving the device for a purpose the user did not accept. A later vulnerability then has more data available than the feature required.</p>
+  <table>
+    <tr><th>OWASP Mobile Top 10 (2024)</th><td>M6 Inadequate Privacy Controls. M2 Inadequate Supply Chain Security when the collector is a third-party SDK.</td></tr>
+    <tr><th>Typical severity</th><td>Low to High. Covert collection of location, contacts, or identifiers is High. A permission that is declared and never used is Low or Info.</td></tr>
+    <tr><th>Suggested CVSS range</th><td>3.0–7.0. Privacy impact is real and the “attack” is often the app’s own network call, so complexity is low once the behavior is confirmed.</td></tr>
+    <tr><th>Common CWEs</th><td>CWE-359 Exposure of Private Personal Information. CWE-200 Exposure of Sensitive Information.</td></tr>
+  </table>
+  <p class="back"><a href="#top">Back to contents</a></p>
+</section>
+
+<section class="card" id="MASVS-PRIVACY-2">
+  <h2>MASVS-PRIVACY-2</h2>
+  <p class="statement">The app prevents identification of the user.</p>
+  <p>Users should not be re-identified across purposes by a stable fingerprint. Data can be aggregated, anonymized, or pseudonymized. A signal collected for fraud detection must not be reused, unchanged, for advertising.</p>
+  <p>No current androidsec rule maps to this id.</p>
+  <h3>Security controls and focus areas</h3>
+  <ul>
+    <li>No long-lived device identifier sent where a rotating or purpose-bound id would do.</li>
+    <li>Separate identifiers for fraud, support, and measurement, so one stream cannot be joined to another.</li>
+    <li>Advertising identifiers used only where the platform’s limit-ad-tracking setting is honored.</li>
+  </ul>
+  <h3>Common vulnerabilities and attacks</h3>
+  <ul>
+    <li>A hardware or advertising id combined with behavior and shared with an analytics or ads SDK.</li>
+    <li>The same pseudonym used for two purposes, which makes the user linkable.</li>
+    <li>IP address plus device properties used as a fingerprint after the user resets the advertising id.</li>
+  </ul>
+  <h3>How these issues are usually exploited</h3>
+  <p>The observer does not break the account. They join records. The identifier in the app’s traffic matches an identifier in another data set, and activity that was supposed to be separate becomes one profile. Resetting a single id does not help when the app still sends the other signals.</p>
+  <table>
+    <tr><th>OWASP Mobile Top 10 (2024)</th><td>M6 Inadequate Privacy Controls.</td></tr>
+    <tr><th>Typical severity</th><td>Low to Medium. High only when the identifier is tied to sensitive categories of data the user did not expect to be linked.</td></tr>
+    <tr><th>Suggested CVSS range</th><td>3.0–5.5. This is a privacy failure more often than a classic compromise of an account.</td></tr>
+    <tr><th>Common CWEs</th><td>CWE-359 Exposure of Private Personal Information.</td></tr>
+  </table>
+  <p class="back"><a href="#top">Back to contents</a></p>
+</section>
+
+<section class="card" id="MASVS-PRIVACY-3">
+  <h2>MASVS-PRIVACY-3</h2>
+  <p class="statement">The app is transparent about data collection and usage.</p>
+  <p>Users have to be able to learn what is collected, where it goes, and which of that behavior they would not expect. Store disclosures and the in-app policy have to match the traffic. Background collection is part of the disclosure, not an exception.</p>
+  <p>No current androidsec rule maps to this id.</p>
+  <h3>Security controls and focus areas</h3>
+  <ul>
+    <li>A privacy policy and a store data-safety form that list the data the app and its SDKs actually send.</li>
+    <li>Notice before behavior a user would not expect, including collection while the app is in the background.</li>
+    <li>Updates to that notice when a new SDK or a new field is added.</li>
+  </ul>
+  <h3>Common vulnerabilities and attacks</h3>
+  <ul>
+    <li>Traffic shows identifiers, location, or contacts that the policy and the store form do not mention.</li>
+    <li>An SDK named nowhere in the disclosure that receives a copy of the user’s data.</li>
+    <li>Collection that starts before the policy is shown.</li>
+  </ul>
+  <h3>How these issues are usually exploited</h3>
+  <p>There is often no second attacker. The app’s own requests are compared with its own notice. Fields that appear on the wire and not in the notice are the finding. The harm is that the user could not refuse a practice they were not told about.</p>
+  <table>
+    <tr><th>OWASP Mobile Top 10 (2024)</th><td>M6 Inadequate Privacy Controls.</td></tr>
+    <tr><th>Typical severity</th><td>Info to Medium. Medium when the undisclosed data is contact, location, or a stable identifier. Info when the gap is wording and the data is already described.</td></tr>
+    <tr><th>Suggested CVSS range</th><td>Often unscored. About 2.0–5.0 when undisclosed personal data leaves the device.</td></tr>
+    <tr><th>Common CWEs</th><td>CWE-359 Exposure of Private Personal Information.</td></tr>
+  </table>
+  <p class="back"><a href="#top">Back to contents</a></p>
+</section>
+
+<section class="card" id="MASVS-PRIVACY-4">
+  <h2>MASVS-PRIVACY-4</h2>
+  <p class="statement">The app offers user control over their data.</p>
+  <p>Consent is not a one-time switch. The user needs a way to change their mind, to delete or export what was collected, and to see a new prompt when the app starts wanting more than it asked for originally.</p>
+  <p>No current androidsec rule maps to this id.</p>
+  <h3>Security controls and focus areas</h3>
+  <ul>
+    <li>In-app controls to withdraw consent, delete an account, and change privacy choices.</li>
+    <li>Deletion that reaches the app’s own server and the SDKs that received a copy, as far as the app can require it.</li>
+    <li>A fresh prompt when a release collects a new category of data.</li>
+  </ul>
+  <h3>Common vulnerabilities and attacks</h3>
+  <ul>
+    <li>No deletion path, or a path that hides the account in the UI and leaves it on the server.</li>
+    <li>A consent refusal that the SDK ignores.</li>
+    <li>A later release that collects more data under the old consent.</li>
+  </ul>
+  <h3>How these issues are usually exploited</h3>
+  <p>The user refuses or deletes, and the previous identifier keeps working. Requests after the refusal still carry the data. Or support has no way to remove the account, so a copy remains after the user believes it is gone. The failure is the missing control, observed by repeating the action and watching the traffic.</p>
+  <table>
+    <tr><th>OWASP Mobile Top 10 (2024)</th><td>M6 Inadequate Privacy Controls.</td></tr>
+    <tr><th>Typical severity</th><td>Low to Medium. Medium when deletion or withdrawal is promised and then does not happen for personal data.</td></tr>
+    <tr><th>Suggested CVSS range</th><td>2.0–5.0. This is scored as a privacy-control failure, not as remote code execution.</td></tr>
+    <tr><th>Common CWEs</th><td>CWE-359 Exposure of Private Personal Information.</td></tr>
+  </table>
+  <p class="back"><a href="#top">Back to contents</a></p>
+</section>
+</body>
+</html>

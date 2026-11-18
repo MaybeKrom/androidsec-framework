@@ -73,12 +73,20 @@ def run(ctx):
                         timeout=15,
                     )
                     body = (cat.stdout or "")[:2000]
-                    if body and ("password" in body.lower() or "<string" in body):
+                    # A <string> tag is every preference file. Require a
+                    # credential-like name or value so server host prefs are
+                    # not reported as Critical secrets.
+                    if body and re.search(
+                        r"(?i)(password|passwd|secret|token|api[_-]?key|credential)",
+                        body,
+                    ):
                         findings.append({
                             "rule_id": "BACKUP_PREFS_SECRET",
                             "evidence": f"{pref}: {body[:400]}",
                         })
                         lines.append(f"  [!] secret-like prefs in {pref}")
+                    elif body.strip():
+                        lines.append(f"  [-] prefs present but no credential marker: {pref}")
             db_ls = _shell(["shell", "run-as", package, "ls", "databases"], timeout=15)
             db_out = (db_ls.stdout or "").strip()
             if db_ls.returncode == 0 and db_out:

@@ -6,6 +6,7 @@ BLOCKLIST = (
     "login.live.com", "login.yahoo.com", "hostname", "localhost"
 )
 
+from analyzers.dex_scan import const_strings, iter_app_methods, pretty_class
 from analyzers.utils import has_network_capability as _has_network_capability
 
 
@@ -41,7 +42,12 @@ def run(ctx):
             for s in strings:
                 if not isinstance(s, str): continue
                 if s.startswith("http://"):
-                    if not any(b in s for b in BLOCKLIST) and len(s) > 10:
+                    # example.com. (trailing dot) is a real host-confusion URL,
+                    # not the documentation placeholder example.com.
+                    blocked = any(b in s for b in BLOCKLIST)
+                    if blocked and "example.com." in s:
+                        blocked = False
+                    if not blocked and len(s) > 10:
                         http_urls.add(s)
         except Exception:
             continue
@@ -49,5 +55,26 @@ def run(ctx):
     for u in sorted(http_urls)[:15]:
         L.append(f"  [!] HTTP: {u}")
         F.append({"rule_id": "NETWORK_HTTP_URL", "evidence": u})
+
+    # The "http://" prefix and the HttpPost call are often in different methods
+    # (a field initializer versus an inner-class request). Match them across
+    # the app package. Full http:// URLs are already collected above.
+    scheme_sites = []
+    client_sites = []
+    for class_name, method_name, insns in iter_app_methods(ctx):
+        literals = const_strings(insns)
+        where = f"{pretty_class(class_name)}->{method_name}"
+        if "http://" in literals or any(item.startswith("http://") for item in literals):
+            scheme_sites.append(where)
+        invokes = "\n".join(output for op, output in insns if "invoke" in op)
+        if any(token in invokes for token in ("HttpPost", "HttpGet", "HttpURLConnection", "DefaultHttpClient")):
+            client_sites.append(where)
+    if scheme_sites and client_sites:
+        evidence = (
+            f"cleartext http:// in {scheme_sites[0]} "
+            f"with HTTP client {client_sites[0]}"
+        )
+        L.append(f"  [!] HTTP client: {evidence}")
+        F.append({"rule_id": "NETWORK_HTTP_URL", "evidence": evidence})
 
     return {"tool": "network", "output": "\n".join(L), "findings": F}

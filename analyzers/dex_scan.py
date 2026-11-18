@@ -64,3 +64,101 @@ def zip_text_files(ctx, suffixes=(".xml", ".json", ".properties", ".txt", ".html
             continue
         if text.strip():
             yield name, text
+
+
+_LIBRARY_PREFIXES = (
+    "Landroid/",
+    "Landroidx/",
+    "Landroid/support/",
+    "Lcom/google/",
+    "Lkotlin/",
+    "Lkotlinx/",
+    "Lorg/apache/",
+    "Lorg/json/",
+    "Lokhttp3/",
+    "Lokio/",
+    "Lcom/android/volley/",
+    "Lcom/android/org/",
+    "Ljavax/",
+    "Ljava/",
+    "Ldalvik/",
+    "Lorg/bouncycastle/",
+    "Lcom/squareup/",
+    "Lcom/facebook/",
+)
+
+
+def pretty_class(raw: str) -> str:
+    name = raw[1:] if raw.startswith("L") else raw
+    if name.endswith(";"):
+        name = name[:-1]
+    return name.replace("/", ".")
+
+
+def app_class_prefix(ctx) -> str:
+    try:
+        package = ctx.apk.get_package() or ""
+    except Exception:
+        package = ""
+    if not package:
+        return ""
+    return "L" + package.replace(".", "/") + "/"
+
+
+def const_strings(insns) -> list:
+    """Pull const-string literals out of androguard instruction output."""
+    found = []
+    for op, output in insns:
+        if not str(op).startswith("const-string"):
+            continue
+        quote = output.find('"')
+        if quote < 0:
+            continue
+        literal = output[quote + 1 :]
+        if literal.endswith('"'):
+            literal = literal[:-1]
+        found.append(literal)
+    return found
+
+
+def iter_app_methods(ctx):
+    """Yield (class_name, method_name, [(op, output), ...]) for the app package.
+
+    Library bytecode (Play Services, support-v4, OkHttp) shares the DEX string
+    pool and was producing false positives such as addJavascriptInterface.
+    Results are cached on the context so several analyzers can reuse one walk.
+    """
+    cached = getattr(ctx, "_app_methods_cache", None)
+    if cached is not None:
+        return cached
+
+    dx = getattr(ctx, "dx", None)
+    prefix = app_class_prefix(ctx)
+    methods = []
+    if dx is None or not prefix:
+        ctx._app_methods_cache = methods
+        return methods
+
+    for analysis in dx.get_methods():
+        try:
+            if analysis.is_external():
+                continue
+        except Exception:
+            continue
+        method = analysis.get_method()
+        class_name = method.get_class_name()
+        if not class_name.startswith(prefix):
+            continue
+        if class_name.startswith(_LIBRARY_PREFIXES):
+            continue
+        try:
+            insns = [
+                (ins.get_name(), ins.get_output() or "")
+                for ins in method.get_instructions()
+            ]
+        except Exception:
+            continue
+        methods.append((class_name, method.get_name(), insns))
+
+    ctx._app_methods_cache = methods
+    return methods

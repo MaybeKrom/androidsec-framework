@@ -39,11 +39,15 @@ LAB_PROFILES = {
     "com.android.insecurebankv2": {
         "name": "InsecureBankv2",
         "challenges": [
-            ("WEBVIEW_JS_BRIDGE", "Exported WebView + JS bridge"),
-            ("EXPORTED_PROVIDER", "TrackUserContentProvider"),
-            ("DEBUGGABLE_CREDS", "Debuggable credential storage"),
-            ("BROADCAST", "Insecure broadcast receiver"),
-            ("HTTP_API", "HTTP / cleartext API usage"),
+            ("EXPORTED_ACTIVITIES", "Exported PostLogin, DoTransfer, ViewStatement, ChangePassword"),
+            ("WEBVIEW_FILE", "ViewStatement loads external HTML with JavaScript"),
+            ("EXPORTED_PROVIDER", "TrackUserContentProvider query without a read permission"),
+            ("BROADCAST_SMS", "MyBroadCastReceiver sends the new password by SMS"),
+            ("HARDCODED_AES", "Hardcoded AES passphrase in CryptoClass"),
+            ("DEV_LOGIN", "Developer backdoor /devlogin with devadmin"),
+            ("DEBUGGABLE_CREDS", "Debuggable app stores credentials in SharedPreferences"),
+            ("CLEARTEXT_HTTP", "Login and transfer clients use http://"),
+            ("ROOT_CHECK", "Client-side root check in PostLogin"),
         ],
     },
     "owasp.mstg.uncrackable1": {
@@ -57,6 +61,21 @@ LAB_PROFILES = {
     "owasp.mstg.uncrackable3": {
         "name": "UnCrackable Level 3",
         "challenges": [("ANTI_FRIDA", "Anti-Frida + native checks")],
+    },
+    "oversecured.ovaa": {
+        "name": "OVAA",
+        "challenges": [
+            ("DEEPLINK_LOGIN_URL", "Deeplink overwrites the login URL"),
+            ("DEEPLINK_GRANT_URI", "Deeplink grants URI permission to a non-exported provider"),
+            ("DEEPLINK_WEBVIEW", "Deeplink opens a URL in a file-access WebView"),
+            ("HOST_SUFFIX", "Host check uses endsWith and can be bypassed"),
+            ("INTENT_REDIRECT", "LoginActivity starts a caller-supplied intent"),
+            ("FILE_PICK", "ACTION_PICK result is trusted as a file"),
+            ("BROADCAST_CREDS", "Implicit broadcast carries credentials"),
+            ("DYNAMIC_DEX", "DexClassLoader loads /sdcard/updater.apk"),
+            ("PLUGIN_LOAD", "Loads code from other installed plugin packages"),
+            ("FILEPROVIDER_ROOT", "FileProvider exposes root-path"),
+        ],
     },
     "com.app.damnvulnerablebank": {
         "name": "Damn Vulnerable Bank",
@@ -88,7 +107,7 @@ def run(ctx):
 
     if not profile:
         lines.append(f"Package {package or '?'}: no built-in lab profile.")
-        lines.append("Supported: DIVA, AndroGoat, InsecureBankv2, UnCrackable 1-3, DamnVulnerableBank.")
+        lines.append("Supported: DIVA, AndroGoat, InsecureBankv2, OVAA, UnCrackable 1-3, DamnVulnerableBank.")
         return {"tool": "lab_mapper", "output": "\n".join(lines), "findings": []}
 
     lines.append(f"Detected lab app: {profile['name']} ({package})")

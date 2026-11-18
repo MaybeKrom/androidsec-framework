@@ -2,7 +2,7 @@
 
 import re
 
-from analyzers.dex_scan import iter_dex_strings
+from analyzers.dex_scan import const_strings, iter_app_methods, iter_dex_strings, pretty_class
 
 NS = "{http://schemas.android.com/apk/res/android}"
 
@@ -36,17 +36,30 @@ def run(ctx):
                     signals.add("exported_activity")
                     evidence.setdefault("exported_activity", child.get(f"{NS}name", "activity"))
 
-    # DEX signals
-    for text in iter_dex_strings(ctx, max_strings=120_000):
-        if "addJavascriptInterface" in text:
+    # DEX signals. JS bridge must be an app-package invoke. The string pool
+    # also contains Play Services' addJavascriptInterface.
+    for class_name, method_name, insns in iter_app_methods(ctx):
+        invokes = "\n".join(output for op, output in insns if "invoke" in op)
+        literals = const_strings(insns)
+        where = f"{pretty_class(class_name)}->{method_name}"
+        if "->addJavascriptInterface(" in invokes:
             signals.add("js_bridge")
-            evidence["js_bridge"] = text[:100]
+            evidence["js_bridge"] = where
+        javascript = "setJavaScriptEnabled" in invokes
+        external_file = any(item.startswith("file://") for item in literals) or (
+            "getExternalStorageDirectory" in invokes
+        )
+        if javascript and external_file:
+            signals.add("file_webview")
+            evidence["file_webview"] = where
+        if "SharedPreferences" in invokes:
+            signals.add("prefs")
+        if any(re.search(r"(?i)password|passwd", item) for item in literals):
+            signals.add("password_string")
+
+    for text in iter_dex_strings(ctx, max_strings=120_000):
         if re.search(r"(?i)rawQuery|execSQL", text):
             signals.add("sql_api")
-        if re.search(r"(?i)SharedPreferences|getSharedPreferences", text):
-            signals.add("prefs")
-        if re.search(r"(?i)password|passwd", text) and "prefs" in signals:
-            signals.add("password_string")
         if "MODE_WORLD_READABLE" in text or "MODE_WORLD_WRITEABLE" in text:
             signals.add("world_file")
         if re.search(r"AKIA[0-9A-Z]{16}", text):
@@ -57,8 +70,14 @@ def run(ctx):
     if "js_bridge" in signals and "exported_activity" in signals:
         chains.append((
             "CORRELATED_WEBVIEW_EXPORT",
-            "Exported activity + addJavascriptInterface — attacker-reachable JS bridge surface",
-            f"{evidence.get('exported_activity')} + {evidence.get('js_bridge', 'js bridge')}",
+            "Exported activity + app-package addJavascriptInterface — attacker-reachable JS bridge",
+            f"{evidence.get('js_bridge', 'js bridge')}",
+        ))
+    if "file_webview" in signals and "exported_activity" in signals:
+        chains.append((
+            "CORRELATED_WEBVIEW_FILE",
+            "App WebView enables JavaScript on a file or external-storage URL",
+            evidence.get("file_webview", "webview"),
         ))
     if "exported_provider" in signals and "sql_api" in signals:
         chains.append((

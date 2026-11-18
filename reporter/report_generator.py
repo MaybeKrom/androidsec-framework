@@ -63,7 +63,6 @@ class ReportGenerator:
         self.findings = findings
         self.summary = summary
 
-    # ---------- JSON ----------
     def save_json(self, path):
         data = {
             "metadata":     self.metadata,
@@ -80,7 +79,6 @@ class ReportGenerator:
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
 
-    # ---------- HTML ----------
     def save_html(self, path):
         esc = html.escape
         m, s = self.metadata, self.summary
@@ -88,7 +86,6 @@ class ReportGenerator:
         executed = [t for t in self.tool_results if not t.get("skipped")]
         skipped  = [t for t in self.tool_results if t.get("skipped")]
 
-        # Category summary (by MASVS prefix)
         cat_counts = {}
         for f in self.findings:
             masvs = f.get("masvs", "N/A")
@@ -123,7 +120,6 @@ a.exploit:hover{{background:#9f2d3a}}
 </style></head><body>
 <h1>androidsec — Integrated Security Assessment</h1>"""]
 
-        # ---------- Metadata card ----------
         meta_rows = [
             ("Target",     m.get("target_basename", m["target"])),
             ("Package",    m.get("package", "?")),
@@ -140,7 +136,6 @@ a.exploit:hover{{background:#9f2d3a}}
                          f'<td style="word-break:break-all">{esc(str(v))}</td></tr>')
         parts.append("</table></div>")
 
-        # ---------- Executive summary ----------
         level = s["level"]
         lcolor = LEVEL_COLOR.get(level, "#333")
         parts.append(f'<div class="card"><h2>Executive Summary</h2>'
@@ -158,7 +153,6 @@ a.exploit:hover{{background:#9f2d3a}}
             parts.append('</div>')
         parts.append('</div>')
 
-        # ---------- Findings table ----------
         parts.append('<div class="card"><h2>Findings</h2>')
         if not self.findings:
             parts.append('<p>No findings were identified.</p>')
@@ -187,7 +181,6 @@ a.exploit:hover{{background:#9f2d3a}}
             parts.append('</table>')
         parts.append('</div>')
 
-        # ---------- Methodology ----------
         parts.append(
             '<div class="card methodology"><h2>Methodology</h2><p>'
             'This assessment was performed through static analysis of the supplied APK, '
@@ -203,7 +196,6 @@ a.exploit:hover{{background:#9f2d3a}}
             '</p></div>'
         )
 
-        # ---------- Executed tool outputs ----------
         parts.append('<div class="card"><h2>Executed Tools</h2>')
         for t in executed:
             n = len(t["findings"])
@@ -213,7 +205,6 @@ a.exploit:hover{{background:#9f2d3a}}
             parts.append(f'<pre>{esc(t["output"])}</pre>')
         parts.append('</div>')
 
-        # ---------- Skipped tools ----------
         if skipped:
             parts.append('<div class="card"><h2>Skipped Tools</h2>'
                          '<p style="font-size:14px;color:#666">'
@@ -229,6 +220,8 @@ a.exploit:hover{{background:#9f2d3a}}
 
         with open(path, "w", encoding="utf-8") as f:
             f.write("".join(parts))
+        from rules.owasp_mapper import install_explanations
+        install_explanations(os.path.dirname(os.path.abspath(path)))
 
     def render_pdf_html(self):
         from reporter.pdf_report import render_html

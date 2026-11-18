@@ -23,6 +23,10 @@ from webapp.device import bp as device_bp  # noqa: E402
 from webapp.device import ready_serial, valid_serial  # noqa: E402
 from webapp.jobs import create_job, get_job, is_live_report  # noqa: E402
 from webapp.exploit import bp as exploit_bp  # noqa: E402
+from rules.owasp_mapper import EXPLANATIONS_FILE, install_explanations  # noqa: E402
+
+os.makedirs(REPORT_DIR, exist_ok=True)
+install_explanations(REPORT_DIR)
 
 _REPORT_NAME = re.compile(r"security_report_\d{8}_\d{6}\.html$")
 _REPORT_PDF = re.compile(r"security_report_\d{8}_\d{6}\.pdf$")
@@ -225,9 +229,12 @@ def _send_report_file(filename):
         abort(404)
     if filename != "masvs_explanations.html" and not is_live_report(filename):
         abort(404)
-    path = _report_path(filename)
     if filename == "masvs_explanations.html":
+        if os.path.isfile(EXPLANATIONS_FILE):
+            return send_file(EXPLANATIONS_FILE, mimetype="text/html")
+        path = _report_path(filename)
         return send_file(path, mimetype="text/html")
+    path = _report_path(filename)
     with open(path, encoding="utf-8") as handle:
         html = handle.read()
     html = html.replace("<th>Title</th>", "<th>Vulnerability</th>", 1)

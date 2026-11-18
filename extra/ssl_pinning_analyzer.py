@@ -2,7 +2,7 @@
 
 import re
 
-from analyzers.dex_scan import iter_dex_strings, zip_text_files
+from analyzers.dex_scan import iter_app_methods, iter_dex_strings, pretty_class, zip_text_files
 
 PIN_PATTERNS = {
     "SSL_PINNING_OKHTTP": re.compile(r"CertificatePinner|okhttp3\.CertificatePinner"),
@@ -13,7 +13,6 @@ PIN_PATTERNS = {
         r"TrustAllHostnameVerifier|NullHostnameVerifier|EmptyTrustManager|"
         r"NaiveTrustManager|InsecureTrustManager"
     ),
-    "SSL_CUSTOM_TRUSTMANAGER": re.compile(r"X509TrustManager|TrustManagerFactory"),
 }
 
 _LIBRARY_NOISE = re.compile(
@@ -25,7 +24,10 @@ _LIBRARY_NOISE = re.compile(
 def _is_library_noise(text: str) -> bool:
     if _LIBRARY_NOISE.search(text):
         return True
-    if re.fullmatch(r"[\(\)\[L/;a-zA-Z0-9$_]+;", (text or "").strip()):
+    stripped = (text or "").strip()
+    # JVM type descriptors and bare interface names, including
+    # (Ljavax/net/ssl/X509TrustManager;)V. Those are not a custom TrustManager.
+    if re.fullmatch(r"[\(\)\[\]L/;a-zA-Z0-9$_]+", stripped):
         return True
     return False
 
@@ -44,15 +46,21 @@ def run(ctx):
             # Pinning markers often live inside OkHttp itself — still useful inventory.
             if rule in ("SSL_TRUST_ALL",) and _is_library_noise(text):
                 continue
-            if rule == "SSL_CUSTOM_TRUSTMANAGER" and _is_library_noise(text):
-                # Interface refs in libraries are noise; keep app-local customizations.
-                continue
             seen_rules.add(rule)
             findings.append({"rule_id": rule, "evidence": text[:140]})
             marker = "+" if "PINNING" in rule else "!"
             lines.append(f"  [{marker}] {rule}: {text[:100]}")
             if rule == "SSL_TRUST_ALL":
                 trust_all_app_local = True
+
+    # A custom TrustManager is an app method, not an OkHttp warning string
+    # that mentions X509TrustManager.
+    for class_name, method_name, _insns in iter_app_methods(ctx):
+        if method_name == "checkServerTrusted":
+            evidence = f"{pretty_class(class_name)}->{method_name}"
+            findings.append({"rule_id": "SSL_CUSTOM_TRUSTMANAGER", "evidence": evidence})
+            lines.append(f"  [!] SSL_CUSTOM_TRUSTMANAGER: {evidence}")
+            break
 
     # Parse network security config XML if present in APK.
     for name, text in zip_text_files(ctx, suffixes=(".xml",)):

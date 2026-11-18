@@ -49,6 +49,13 @@ def run(ctx):
             "skipped": True,
         }
 
+    if package and f'package="{package}"' not in xml:
+        lines.append(
+            f"[-] Foreground UI is not {package}. "
+            "The dump was not treated as this app's challenge menu."
+        )
+        return {"tool": "uiautomator", "output": "\n".join(lines), "findings": findings}
+
     if not xml.strip():
         lines.append("[-] Empty UI hierarchy (uiautomator may be unavailable on this image).")
         findings.append({
